@@ -8,6 +8,7 @@ import {
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import type { Database, Papel } from "@/types/database.types";
+import { MASTER_EMAIL } from "@/lib/constants";
 
 type Grupo = Database["public"]["Tables"]["grupos"]["Row"];
 type Membro = Database["public"]["Tables"]["grupo_membros"]["Row"];
@@ -23,6 +24,7 @@ interface AuthContextValue {
   selecionarGrupo: (grupoId: string) => void;
   podeGerenciarOrcamento: boolean;
   ehAdmin: boolean;
+  ehMaster: boolean;
   recarregarMembresias: () => Promise<void>;
   sair: () => Promise<void>;
 }
@@ -38,10 +40,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   async function carregarMembresias() {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    if (!userId) {
+      setMembresias([]);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("grupo_membros")
       .select("*, grupo:grupos(*)")
-      .eq("ativo", true);
+      .eq("ativo", true)
+      .eq("user_id", userId);
 
     if (error) {
       console.error("Erro ao carregar grupos do usuário:", error.message);
@@ -96,29 +106,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const ehAdmin = membroAtual?.role === "admin";
-  const podeGerenciarOrcamento: boolean =
-    membroAtual?.role === "admin" || membroAtual?.role === "gestor";
-
-  const value: AuthContextValue = {
-    carregando,
-    session,
-    membresias,
-    grupoAtual,
-    membroAtual,
-    selecionarGrupo,
-    podeGerenciarOrcamento,
-    ehAdmin,
-    recarregarMembresias: carregarMembresias,
-    sair,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth precisa estar dentro de <AuthProvider>");
-  return ctx;
-}
-
-export type { Papel };
+  const ehMaster = session?.user.email === MASTER_EMAIL;
+  const
