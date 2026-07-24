@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
+import { Fab } from "@/components/ui/fab";
 import { Badge } from "@/components/ui/badge";
 import { ListItem } from "@/components/ui/list-item";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -133,9 +134,11 @@ export default function Calendario() {
         )}
       </Card>
 
-      <Button variant="fab" size="fab" onClick={() => setNovaReservaAberta(true)} aria-label="Nova reserva">
-        <Plus size={26} />
-      </Button>
+      <Fab>
+        <Button variant="fab" size="fab" onClick={() => setNovaReservaAberta(true)} aria-label="Nova reserva">
+          <Plus size={26} />
+        </Button>
+      </Fab>
 
       {diaSelecionado && <ModalDia dataISO={diaSelecionado} aoFechar={() => setDiaSelecionado(null)} />}
       {novaReservaAberta && (
@@ -183,7 +186,7 @@ function ModalNovaReserva({ aoFechar, aoEscolherDia }: { aoFechar: () => void; a
         </div>
         <div className="flex flex-col gap-1.5">
           <Label>Período</Label>
-          <select className="h-12 rounded-2xl border border-input bg-white px-4 text-[15px]" value={periodo} onChange={(e) => setPeriodo(e.target.value as Periodo)}>
+          <select className="h-12 rounded-2xl border border-input bg-white px-4 text-[16px]" value={periodo} onChange={(e) => setPeriodo(e.target.value as Periodo)}>
             <option value="M">Manhã</option>
             <option value="T">Tarde</option>
           </select>
@@ -258,11 +261,11 @@ function ModalDia({ dataISO, aoFechar }: { dataISO: string; aoFechar: () => void
           <div className="flex flex-col gap-3 border-t border-border/60 pt-4">
             <p className="text-[13.5px] font-bold">Fazer nova reserva</p>
             {ehAdmin && (
-              <select className="h-12 rounded-2xl border border-input bg-white px-4 text-[15px]" value={membroId} onChange={(e) => setMembroId(e.target.value)}>
+              <select className="h-12 rounded-2xl border border-input bg-white px-4 text-[16px]" value={membroId} onChange={(e) => setMembroId(e.target.value)}>
                 {membros?.filter((m) => m.ativo).map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
               </select>
             )}
-            <select className="h-12 rounded-2xl border border-input bg-white px-4 text-[15px]" value={periodo} onChange={(e) => setPeriodo(e.target.value as Periodo)}>
+            <select className="h-12 rounded-2xl border border-input bg-white px-4 text-[16px]" value={periodo} onChange={(e) => setPeriodo(e.target.value as Periodo)}>
               {!resM && <option value="M">Manhã</option>}
               {!resT && <option value="T">Tarde</option>}
             </select>

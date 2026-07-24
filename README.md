@@ -124,3 +124,21 @@ nenhum.
 
 ⚠️ **Você precisa rodar mais um arquivo SQL** para ativar essa proteção:
 `supabase/migrations/0008_grupo_apenas_master.sql`
+
+## Ajustes de responsividade
+
+- Todos os campos de formulário (texto, seleção, área de texto) agora
+  têm no mínimo 16px de fonte — abaixo disso, o Safari do iPhone dá zoom
+  automático ao tocar no campo, o que quebrava a experiência em celular.
+- O botão flutuante "+" da Agenda agora acompanha a largura do conteúdo em
+  qualquer tela — antes ficava colado na borda real da janela em telas
+  largas, desalinhado do restante do app.
+- Conferidas todas as tabelas (Orçamento, Painel do Gestor, Seguro): todas
+  já tinham rolagem horizontal própria em telas estreitas, sem "vazar"
+  da tela.
+- Grades de cartões (Cotistas, Manutenção, Informações, indicadores do
+  Dashboard) já se ajustam de 1 para 2, 3 ou mais colunas conforme o
+  espaço disponível, do celular ao desktop.
+
+Não foi preciso rodar nenhum SQL novo para esta parte — é só o código do
+app mesmo, então basta subir os arquivos atualizados no GitHub.

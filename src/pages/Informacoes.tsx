@@ -94,7 +94,7 @@ export default function Informacoes() {
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="flex flex-col gap-1.5">
               <Label>Categoria</Label>
-              <select className="h-12 rounded-2xl border border-input bg-white px-3 text-[14px]" value={categoria} onChange={(e) => setCategoria(e.target.value as CategoriaInformacao)}>
+              <select className="h-12 rounded-2xl border border-input bg-white px-3 text-[16px]" value={categoria} onChange={(e) => setCategoria(e.target.value as CategoriaInformacao)}>
                 {CATEGORIAS.map((c) => <option key={c} value={c}>{LABEL_CATEGORIA[c]}</option>)}
               </select>
             </div>

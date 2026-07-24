@@ -133,7 +133,7 @@ function ModalCotista({ aberto, aoFechar, membro }: { aberto: boolean; aoFechar:
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
             <Label>Função</Label>
-            <select className="h-12 rounded-2xl border border-input bg-white px-3 text-[14px]" value={role} onChange={(e) => setRole(e.target.value as Papel)}>
+            <select className="h-12 rounded-2xl border border-input bg-white px-3 text-[16px]" value={role} onChange={(e) => setRole(e.target.value as Papel)}>
               <option value="cotista">Cotista</option>
               <option value="gestor">Gestor</option>
               <option value="admin">Admin</option>
