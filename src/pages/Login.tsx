@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Anchor, Mail, Lock } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -44,66 +46,82 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-blue-500 p-4">
-      <Card className="w-full max-w-sm shadow-2xl">
-        <CardHeader className="text-center">
-          <div className="text-4xl mb-1">⛵</div>
-          <CardTitle className="text-xl">Gestão de Cotistas</CardTitle>
-          <CardDescription>
-            {modo === "entrar" ? "Entre com sua conta" : "Crie sua conta"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={aoEnviar} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="email">E-mail</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="username"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="seu@email.com"
-              />
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-petrol via-ocean to-royal p-5">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="w-full max-w-sm"
+      >
+        <Card className="shadow-floating">
+          <CardContent className="flex flex-col items-center gap-6 py-2">
+            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-royal to-ocean text-white shadow-soft">
+              <Anchor size={26} />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="senha">Senha</Label>
-              <Input
-                id="senha"
-                type="password"
-                autoComplete={modo === "entrar" ? "current-password" : "new-password"}
-                required
-                minLength={6}
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                placeholder="********"
-              />
+            <div className="text-center">
+              <h1 className="text-[22px] font-extrabold tracking-tight">Gestão de Cotistas</h1>
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                {modo === "entrar" ? "Entre com sua conta" : "Crie sua conta"}
+              </p>
             </div>
 
-            {erro && <p className="text-sm text-destructive">{erro}</p>}
-            {avisoCadastro && <p className="text-sm text-success">{avisoCadastro}</p>}
+            <form onSubmit={aoEnviar} className="flex w-full flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label>E-mail</Label>
+                <Input
+                  icon={<Mail size={17} />}
+                  type="email"
+                  autoComplete="username"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Senha</Label>
+                <Input
+                  icon={<Lock size={17} />}
+                  type="password"
+                  autoComplete={modo === "entrar" ? "current-password" : "new-password"}
+                  required
+                  minLength={6}
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  placeholder="••••••••"
+                />
+              </div>
 
-            <Button type="submit" disabled={carregando}>
-              {carregando ? "Aguarde..." : modo === "entrar" ? "Entrar" : "Criar conta"}
-            </Button>
+              {erro && (
+                <p className="rounded-xl bg-destructive/10 px-3 py-2 text-[13px] font-medium text-destructive">
+                  {erro}
+                </p>
+              )}
+              {avisoCadastro && (
+                <p className="rounded-xl bg-success-soft px-3 py-2 text-[13px] font-medium text-success">
+                  {avisoCadastro}
+                </p>
+              )}
 
-            <button
-              type="button"
-              className="text-xs text-muted-foreground hover:underline"
-              onClick={() => {
-                setErro(null);
-                setAvisoCadastro(null);
-                setModo(modo === "entrar" ? "cadastrar" : "entrar");
-              }}
-            >
-              {modo === "entrar"
-                ? "Ainda não tem conta? Cadastre-se"
-                : "Já tem conta? Entrar"}
-            </button>
-          </form>
-        </CardContent>
-      </Card>
+              <Button type="submit" size="lg" className="w-full" disabled={carregando}>
+                {carregando ? "Aguarde..." : modo === "entrar" ? "Entrar" : "Criar conta"}
+              </Button>
+
+              <button
+                type="button"
+                className="text-[13px] font-semibold text-muted-foreground hover:text-royal"
+                onClick={() => {
+                  setErro(null);
+                  setAvisoCadastro(null);
+                  setModo(modo === "entrar" ? "cadastrar" : "entrar");
+                }}
+              >
+                {modo === "entrar" ? "Ainda não tem conta? Cadastre-se" : "Já tem conta? Entrar"}
+              </button>
+            </form>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 }

@@ -1,38 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 210 33% 96%;
-    --foreground: 234 45% 20%;
+    /* Neutros */
+    --background: 210 25% 98%;
+    --foreground: 215 30% 14%;
 
     --card: 0 0% 100%;
-    --card-foreground: 234 45% 20%;
+    --card-foreground: 215 30% 14%;
 
-    --primary: 211 71% 33%;
+    --muted: 210 20% 95%;
+    --muted-foreground: 215 12% 45%;
+
+    --secondary: 210 25% 96%;
+    --secondary-foreground: 215 30% 14%;
+
+    --accent: 213 60% 96%;
+    --accent-foreground: 215 30% 14%;
+
+    --border: 213 20% 90%;
+    --input: 213 20% 90%;
+
+    /* Paleta principal do briefing */
+    --petrol: 195 55% 22%;   /* azul petróleo */
+    --ocean: 205 65% 38%;    /* azul oceano */
+    --royal: 226 71% 55%;    /* azul royal — cor de destaque/primária */
+
+    --primary: 226 71% 55%;
     --primary-foreground: 0 0% 100%;
+    --ring: 226 71% 55%;
 
-    --secondary: 213 40% 94%;
-    --secondary-foreground: 234 45% 20%;
+    --success: 152 55% 38%;
+    --success-foreground: 0 0% 100%;
+    --success-soft: 152 60% 94%;
 
-    --muted: 213 20% 94%;
-    --muted-foreground: 199 12% 39%;
+    --warning: 32 90% 50%;
+    --warning-soft: 32 90% 95%;
 
-    --accent: 213 40% 92%;
-    --accent-foreground: 234 45% 20%;
-
-    --destructive: 0 65% 47%;
+    --destructive: 4 70% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 123 43% 31%;
-    --success-foreground: 0 0% 100%;
-
-    --border: 200 16% 84%;
-    --input: 200 16% 84%;
-    --ring: 211 71% 46%;
-
-    --radius: 0.6rem;
+    --radius: 1.25rem;
   }
 }
 
@@ -40,10 +52,21 @@
   * {
     @apply border-border;
   }
-  body {
-    @apply bg-background text-foreground;
-    font-family: 'Segoe UI', Arial, sans-serif;
+  html {
+    -webkit-tap-highlight-color: transparent;
   }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  ::selection {
+    @apply bg-royal/15;
+  }
+}
+
+@layer utilities {
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+  .scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }
 }
 
 @media print {

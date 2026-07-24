@@ -1,11 +1,14 @@
 import { useState } from "react";
+import { PartyPopper } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { useFeriados, useSalvarFeriado, useExcluirFeriado } from "@/lib/queries/useFeriados";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListItem } from "@/components/ui/list-item";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatarDataBR } from "@/lib/ranking";
 
 export default function Feriados() {
@@ -43,63 +46,48 @@ export default function Feriados() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 pb-6">
       {ehAdmin && (
         <Card>
-          <CardHeader>
-            <CardTitle>🎉 Novo feriado / data especial</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="flex flex-col gap-1.5">
-                <Label>Data</Label>
-                <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
-              </div>
-              <div className="flex flex-1 flex-col gap-1.5">
-                <Label>Descrição</Label>
-                <Input
-                  value={descricao}
-                  onChange={(e) => setDescricao(e.target.value)}
-                  placeholder="Ex: Aniversário da cidade"
-                />
-              </div>
-              <Button onClick={adicionar} disabled={salvar.isPending}>
-                Adicionar
-              </Button>
+          <h2 className="mb-4 flex items-center gap-2 text-[15px] font-bold">
+            <PartyPopper size={18} className="text-royal" /> Novo feriado / data especial
+          </h2>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label>Data</Label>
+              <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
             </div>
-          </CardContent>
+            <div className="flex flex-col gap-1.5">
+              <Label>Descrição</Label>
+              <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex: Aniversário da cidade" />
+            </div>
+            <Button onClick={adicionar} disabled={salvar.isPending}>Adicionar</Button>
+          </div>
         </Card>
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle>📅 Feriados cadastrados</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground">Carregando...</p>
-          ) : !feriados?.length ? (
-            <p className="text-sm text-muted-foreground">Nenhum feriado cadastrado.</p>
-          ) : (
-            <div className="flex flex-col divide-y">
-              {feriados.map((f) => (
-                <div key={f.id} className="flex items-center justify-between py-2 text-sm">
-                  <span>
-                    <strong>{formatarDataBR(f.data)}</strong> — {f.descricao}
-                  </span>
-                  {ehAdmin && (
-                    <button
-                      className="text-xs font-semibold text-destructive hover:underline"
-                      onClick={() => remover(f.id)}
-                    >
+        <h2 className="mb-3 text-[15px] font-bold">Feriados cadastrados</h2>
+        {isLoading ? null : !feriados?.length ? (
+          <EmptyState titulo="Nenhum feriado cadastrado" />
+        ) : (
+          <div className="flex flex-col gap-2">
+            {feriados.map((f) => (
+              <ListItem
+                key={f.id}
+                title={f.descricao}
+                subtitle={formatarDataBR(f.data)}
+                trailing={
+                  ehAdmin && (
+                    <button onClick={() => remover(f.id)} className="text-[12.5px] font-bold text-destructive hover:underline">
                       Excluir
                     </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
+                  )
+                }
+              />
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   );

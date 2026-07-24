@@ -1,60 +1,104 @@
-import { type ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { type ReactNode, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Home,
+  CalendarDays,
+  CheckCircle2,
+  Wallet,
+  MoreHorizontal,
+  Wrench,
+  BookOpen,
+  ShieldCheck,
+  Info,
+  BarChart3,
+  Users,
+  PartyPopper,
+  LogOut,
+  ChevronRight,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Avatar } from "@/components/ui/avatar";
+import { Modal } from "@/components/ui/modal";
+import { BottomNavigation, type ItemNav } from "@/components/ui/bottom-navigation";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { grupoAtual, membroAtual, ehAdmin, podeGerenciarOrcamento, sair } = useAuth();
+  const navigate = useNavigate();
+  const [maisAberto, setMaisAberto] = useState(false);
 
-  const itensNav = [
-    { to: "/", label: "🏠 Início" },
-    { to: "/calendario", label: "📅 Calendário" },
-    { to: "/reservar", label: "✅ Reservar" },
-    { to: "/orcamento", label: "💰 Orçamento" },
-    { to: "/manutencao", label: "🔧 Manutenção" },
-    { to: "/diario", label: "📖 Diário de Bordo" },
-    { to: "/seguro", label: "🛡️ Seguro" },
-    { to: "/informacoes", label: "ℹ️ Informações" },
-    ...(podeGerenciarOrcamento ? [{ to: "/painel-gestor", label: "📊 Painel Gestor" }] : []),
-    ...(ehAdmin ? [{ to: "/cotistas", label: "👥 Cotistas" }] : []),
-    ...(ehAdmin ? [{ to: "/feriados", label: "🎉 Feriados" }] : []),
+  const itensPrincipais: ItemNav[] = [
+    { to: "/", label: "Início", icon: <Home size={21} strokeWidth={2.1} /> },
+    { to: "/calendario", label: "Agenda", icon: <CalendarDays size={21} strokeWidth={2.1} /> },
+    { to: "/reservar", label: "Reservar", icon: <CheckCircle2 size={21} strokeWidth={2.1} /> },
+    { to: "/orcamento", label: "Orçamento", icon: <Wallet size={21} strokeWidth={2.1} /> },
+    { label: "Mais", icon: <MoreHorizontal size={21} strokeWidth={2.1} />, onClick: () => setMaisAberto(true) },
+  ];
+
+  const itensMais = [
+    { to: "/manutencao", label: "Manutenção", icon: <Wrench size={18} /> },
+    { to: "/diario", label: "Diário de Bordo", icon: <BookOpen size={18} /> },
+    { to: "/seguro", label: "Seguro", icon: <ShieldCheck size={18} /> },
+    { to: "/informacoes", label: "Informações Úteis", icon: <Info size={18} /> },
+    ...(podeGerenciarOrcamento
+      ? [{ to: "/painel-gestor", label: "Painel do Gestor", icon: <BarChart3 size={18} /> }]
+      : []),
+    ...(ehAdmin ? [{ to: "/cotistas", label: "Cotistas", icon: <Users size={18} /> }] : []),
+    ...(ehAdmin ? [{ to: "/feriados", label: "Feriados", icon: <PartyPopper size={18} /> }] : []),
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-10 flex h-14 items-center justify-between bg-primary px-4 text-primary-foreground shadow-md">
-        <h1 className="truncate text-base font-extrabold">
-          ⛵ {grupoAtual?.nome ?? "Carregando..."}
+    <div className="min-h-screen bg-background pb-24">
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between bg-background/80 px-5 backdrop-blur-md">
+        <h1 className="truncate text-[19px] font-extrabold tracking-tight text-foreground">
+          ⛵ {grupoAtual?.nome ?? "..."}
         </h1>
-        <div className="flex items-center gap-2">
-          <span className="hidden text-xs sm:inline">{membroAtual?.nome}</span>
-          <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase">
-            {membroAtual?.role}
-          </span>
-          <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-white/15" onClick={sair}>
-            Sair
-          </Button>
-        </div>
+        <button onClick={() => setMaisAberto(true)}>
+          <Avatar nome={membroAtual?.nome ?? "?"} destaque />
+        </button>
       </header>
-      <nav className="flex gap-1 overflow-x-auto bg-primary/90 px-2 pb-1">
-        {itensNav.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === "/"}
-            className={({ isActive }) =>
-              cn(
-                "whitespace-nowrap rounded-t-md px-3 py-1.5 text-xs font-semibold text-white/70 hover:text-white",
-                isActive && "bg-background text-primary"
-              )
-            }
+
+      <main className="mx-auto max-w-2xl px-4 pt-2">{children}</main>
+
+      <BottomNavigation itens={itensPrincipais} />
+
+      <Modal aberto={maisAberto} aoFechar={() => setMaisAberto(false)} titulo="Mais">
+        <div className="mb-4 flex items-center gap-3 rounded-2xl bg-secondary/60 p-3.5">
+          <Avatar nome={membroAtual?.nome ?? "?"} destaque size="lg" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[15px] font-bold">{membroAtual?.nome}</p>
+            <p className="text-[12px] font-semibold uppercase tracking-wide text-royal">{membroAtual?.role}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {itensMais.map((item) => (
+            <button
+              key={item.to}
+              onClick={() => {
+                navigate(item.to);
+                setMaisAberto(false);
+              }}
+              className="flex items-center gap-3 rounded-2xl bg-white p-3.5 text-left shadow-softer border border-border/50 hover:bg-secondary/60"
+            >
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-royal">
+                {item.icon}
+              </span>
+              <span className="flex-1 text-[14.5px] font-semibold">{item.label}</span>
+              <ChevronRight size={18} className="text-muted-foreground/50" />
+            </button>
+          ))}
+
+          <button
+            onClick={sair}
+            className="mt-2 flex items-center gap-3 rounded-2xl p-3.5 text-left text-destructive hover:bg-destructive/5"
           >
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
-      <main className="mx-auto max-w-5xl p-4">{children}</main>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-destructive/10">
+              <LogOut size={18} />
+            </span>
+            <span className="text-[14.5px] font-semibold">Sair</span>
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

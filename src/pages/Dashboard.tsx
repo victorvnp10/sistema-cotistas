@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Trophy, CalendarCheck2, CalendarDays, Users2, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMembros } from "@/lib/queries/useMembros";
 import { useFeriados } from "@/lib/queries/useFeriados";
@@ -13,6 +15,8 @@ import {
   formatarDataISO,
 } from "@/lib/ranking";
 import { Card, CardContent } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/stat-card";
+import { Avatar } from "@/components/ui/avatar";
 
 export default function Dashboard() {
   const { grupoAtual, membroAtual } = useAuth();
@@ -60,108 +64,101 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Kpi
+    <div className="flex flex-col gap-5 pb-6">
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+        <p className="text-[13px] font-medium text-muted-foreground">Olá, {membroAtual?.nome?.split(" ")[0]} 👋</p>
+        <h2 className="text-[22px] font-extrabold tracking-tight">{grupoAtual?.nome_recurso}</h2>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.05 }}
+        className="grid grid-cols-2 gap-3"
+      >
+        <StatCard
           titulo="Sua posição"
           valor={posicaoRanking > 0 ? `#${posicaoRanking}` : "—"}
           sub={posicaoRanking > 0 ? `de ${ranking.length} cotistas` : "sem reservas"}
+          icon={<Trophy size={18} />}
+          destaque
         />
-        <Kpi
+        <StatCard
           titulo="Sua reserva"
           valor={minhaProximaReserva ? formatarDataBR(minhaProximaReserva.data) : "—"}
           sub={
             minhaProximaReserva
-              ? `${minhaProximaReserva.periodo === "M" ? "Manhã" : "Tarde"} · sua próxima reserva`
-              : "Você não tem uma reserva"
+              ? `${minhaProximaReserva.periodo === "M" ? "Manhã" : "Tarde"} · próxima reserva`
+              : "Sem reserva agendada"
           }
+          icon={<CalendarCheck2 size={18} />}
         />
-        <Kpi titulo="Calendário" valor={String(reservasEsteMes)} sub="reservas este mês" />
-        <Kpi titulo="Cotistas" valor={String(cotistasAtivos)} sub="ativos" />
-        <Link to="/seguro">
-          <Kpi titulo="Seguro" valor={seguroValor} sub={seguroSub} />
+        <Link to="/calendario">
+          <StatCard titulo="Este mês" valor={String(reservasEsteMes)} sub="reservas no calendário" icon={<CalendarDays size={18} />} onClick={() => {}} />
         </Link>
-      </div>
+        <Link to="/seguro">
+          <StatCard titulo="Seguro" valor={seguroValor} sub={seguroSub} icon={<ShieldCheck size={18} />} onClick={() => {}} />
+        </Link>
+      </motion.div>
 
       <Card>
-        <CardContent className="pt-5">
-          <h2 className="mb-3 text-sm font-bold">🏆 Ranking de Prioridade</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-[11px] uppercase text-muted-foreground">
-                  <th className="pb-2">#</th>
-                  <th className="pb-2">Cotista</th>
-                  <th className="pb-2">{grupoAtual?.termo_cota}s</th>
-                  <th className="pb-2">Usados</th>
-                  <th className="pb-2">Agendados</th>
-                  <th className="pb-2">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ranking.map((linha, i) => (
-                  <tr
-                    key={linha.membroId}
-                    className={linha.membroId === membroAtual?.id ? "bg-blue-50" : ""}
-                  >
-                    <td className="py-1.5">{i + 1}</td>
-                    <td className="py-1.5">
-                      {linha.nome}
-                      {linha.membroId === membroAtual?.id && (
-                        <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
-                          Você
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-1.5">{linha.cotas}</td>
-                    <td className="py-1.5">{linha.utilizados}</td>
-                    <td className="py-1.5">{linha.agendados}</td>
-                    <td className="py-1.5 font-bold">{linha.total}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            🏆 Menor pontuação = maior prioridade para reservar fins de semana e feriados. A
-            pontuação considera o número de {grupoAtual?.termo_cota}s.
-          </p>
-        </CardContent>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-[15px] font-bold">
+            <Trophy size={17} className="text-royal" /> Ranking de prioridade
+          </h3>
+          <span className="flex items-center gap-1 text-[12px] font-semibold text-muted-foreground">
+            <Users2 size={14} /> {cotistasAtivos} ativos
+          </span>
+        </div>
+        <div className="flex flex-col gap-2">
+          {ranking.map((linha, i) => (
+            <div
+              key={linha.membroId}
+              className={`flex items-center gap-3 rounded-2xl p-2.5 ${
+                linha.membroId === membroAtual?.id ? "bg-accent" : ""
+              }`}
+            >
+              <span className="w-5 shrink-0 text-center text-[13px] font-bold text-muted-foreground">{i + 1}</span>
+              <Avatar nome={linha.nome} size="sm" destaque={linha.membroId === membroAtual?.id} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13.5px] font-semibold">{linha.nome}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {linha.cotas} cota{linha.cotas !== 1 ? "s" : ""} · {linha.utilizados} usados · {linha.agendados} agendados
+                </p>
+              </div>
+              <span className="text-[15px] font-extrabold text-royal">{linha.total}</span>
+            </div>
+          ))}
+        </div>
+        <p className="mt-4 text-[11.5px] leading-relaxed text-muted-foreground">
+          Menor pontuação = maior prioridade para reservar fins de semana e feriados,
+          ponderado pelo número de cotas.
+        </p>
       </Card>
 
       <Card>
-        <CardContent className="pt-5">
-          <h2 className="mb-3 text-sm font-bold">📅 Próximos finais de semana / feriados</h2>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-            {proximosDias.map((d) => (
-              <Link
-                to="/calendario"
-                key={d.data}
-                className="rounded-lg border p-2 text-xs hover:border-primary"
-              >
-                <p className="font-bold">{formatarDataBR(d.data)}</p>
-                <p className="mb-1 text-muted-foreground">{d.descricao}</p>
-                <p>M: {d.reservaManha ? "ocupado" : "livre"}</p>
-                <p>T: {d.reservaTarde ? "ocupado" : "livre"}</p>
-              </Link>
-            ))}
-          </div>
-        </CardContent>
+        <h3 className="mb-4 text-[15px] font-bold">📅 Próximos fins de semana e feriados</h3>
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+          {proximosDias.map((d) => (
+            <Link
+              to="/calendario"
+              key={d.data}
+              className="rounded-2xl border border-border/60 p-3 text-[12px] transition-colors hover:border-royal/40 hover:bg-accent/40"
+            >
+              <p className="font-bold">{formatarDataBR(d.data)}</p>
+              <p className="mb-1.5 truncate text-muted-foreground">{d.descricao || "—"}</p>
+              <div className="flex gap-1">
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${d.reservaManha ? "bg-royal/10 text-royal" : "bg-success-soft text-success"}`}>
+                  M
+                </span>
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${d.reservaTarde ? "bg-royal/10 text-royal" : "bg-success-soft text-success"}`}>
+                  T
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
       </Card>
     </div>
-  );
-}
-
-function Kpi({ titulo, valor, sub }: { titulo: string; valor: string; sub: string }) {
-  return (
-    <Card>
-      <CardContent className="pt-4">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-          {titulo}
-        </p>
-        <p className="text-2xl font-extrabold text-primary">{valor}</p>
-        <p className="text-[11px] text-muted-foreground">{sub}</p>
-      </CardContent>
-    </Card>
   );
 }

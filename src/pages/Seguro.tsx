@@ -1,16 +1,19 @@
 import { useState } from "react";
+import { ShieldCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { useSeguros, useRenovarSeguro } from "@/lib/queries/useSeguro";
 import { useSaldoAtual } from "@/lib/queries/useOrcamento";
 import { formatarMoeda } from "@/lib/formato";
 import { formatarDataBR } from "@/lib/ranking";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
-import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { StatCard } from "@/components/ui/stat-card";
+import { EmptyState } from "@/components/ui/empty-state";
 
 function diasAte(dataISO: string) {
   const hoje = new Date();
@@ -18,28 +21,19 @@ function diasAte(dataISO: string) {
   return Math.round((new Date(dataISO + "T00:00:00").getTime() - hoje.getTime()) / 86400000);
 }
 
-function status(dias: number) {
-  if (dias < 0) return "venc";
-  if (dias <= 7) return "urgent";
-  if (dias <= 20) return "warn";
-  if (dias <= 45) return "alert";
-  return "normal";
+function status(dias: number): "success" | "warning" | "error" | "neutral" {
+  if (dias < 0) return "error";
+  if (dias <= 20) return "warning";
+  if (dias <= 45) return "warning";
+  return "success";
 }
-
-const LABELS: Record<string, string> = {
-  normal: "Em dia",
-  alert: "Atenção",
-  warn: "Renovar em breve",
-  urgent: "Urgente",
-  venc: "Vencido",
-};
-const CORES: Record<string, string> = {
-  normal: "border-sky-500 bg-sky-50",
-  alert: "border-yellow-400 bg-yellow-50",
-  warn: "border-orange-500 bg-orange-50",
-  urgent: "border-purple-500 bg-purple-50",
-  venc: "border-red-600 bg-red-50",
-};
+function label(dias: number) {
+  if (dias < 0) return "Vencido";
+  if (dias <= 7) return "Urgente";
+  if (dias <= 20) return "Renovar em breve";
+  if (dias <= 45) return "Atenção";
+  return "Em dia";
+}
 
 export default function Seguro() {
   const { podeGerenciarOrcamento } = useAuth();
@@ -62,10 +56,9 @@ export default function Seguro() {
   const [observacao, setObservacao] = useState("");
 
   function abrirModal() {
-    const inicioSugerido =
-      atual && diasAte(atual.data_vencimento) >= 0
-        ? new Date(new Date(atual.data_vencimento).getTime() + 86400000).toISOString().slice(0, 10)
-        : hoje;
+    const inicioSugerido = atual && diasAte(atual.data_vencimento) >= 0
+      ? new Date(new Date(atual.data_vencimento).getTime() + 86400000).toISOString().slice(0, 10)
+      : hoje;
     const fimSugerido = new Date(inicioSugerido);
     fimSugerido.setFullYear(fimSugerido.getFullYear() + 1);
     fimSugerido.setDate(fimSugerido.getDate() - 1);
@@ -81,20 +74,9 @@ export default function Seguro() {
   }
 
   async function confirmar() {
-    if (!apolice || !dataInicio || !dataFim) {
-      toast.erro("Preencha apólice, início e vencimento.");
-      return;
-    }
+    if (!apolice || !dataInicio || !dataFim) { toast.erro("Preencha apólice, início e vencimento."); return; }
     try {
-      await renovar.mutateAsync({
-        apolice,
-        seguradora,
-        dataInicio,
-        valor: Number(valor) || 0,
-        dataVencimento: dataFim,
-        lancarDespesa,
-        observacao,
-      });
+      await renovar.mutateAsync({ apolice, seguradora, dataInicio, valor: Number(valor) || 0, dataVencimento: dataFim, lancarDespesa, observacao });
       toast.sucesso("Apólice renovada com sucesso!");
       setModalAberto(false);
     } catch (e) {
@@ -103,72 +85,46 @@ export default function Seguro() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 pb-6">
       <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle>🛡️ Seguro obrigatório</CardTitle>
-          {podeGerenciarOrcamento && <Button size="sm" onClick={abrirModal}>🔄 Renovar apólice</Button>}
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground">Carregando...</p>
-          ) : !atual ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma apólice cadastrada. Use "Renovar apólice" para cadastrar a vigente.
-            </p>
-          ) : (
-            (() => {
-              const dias = diasAte(atual.data_vencimento);
-              const st = status(dias);
-              return (
-                <div className={cn("rounded-lg border-l-4 p-4", CORES[st])}>
-                  <span className="mb-2 inline-block rounded-full bg-white px-3 py-0.5 text-xs font-bold">
-                    {LABELS[st]}
-                  </span>
-                  <p className="text-lg font-extrabold">
-                    Apólice {atual.apolice} {atual.seguradora ? `— ${atual.seguradora}` : ""}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {dias < 0 ? `Vencido há ${Math.abs(dias)} dia(s)` : `Faltam ${dias} dia(s) para o vencimento`}
-                  </p>
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-md bg-white p-2">
-                      <p className="text-xs text-muted-foreground">Início</p>
-                      <p className="font-bold">{formatarDataBR(atual.data_inicio)}</p>
-                    </div>
-                    <div className="rounded-md bg-white p-2">
-                      <p className="text-xs text-muted-foreground">Vencimento</p>
-                      <p className="font-bold">{formatarDataBR(atual.data_vencimento)}</p>
-                    </div>
-                    <div className="rounded-md bg-white p-2">
-                      <p className="text-xs text-muted-foreground">Valor</p>
-                      <p className="font-bold">{formatarMoeda(atual.valor)}</p>
-                    </div>
-                  </div>
-                  {atual.observacao && <p className="mt-2 text-xs text-muted-foreground">{atual.observacao}</p>}
-                </div>
-              );
-            })()
-          )}
-        </CardContent>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-[15px] font-bold"><ShieldCheck size={17} className="text-royal" /> Seguro obrigatório</h2>
+          {podeGerenciarOrcamento && <Button size="sm" onClick={abrirModal}>Renovar</Button>}
+        </div>
+        {isLoading ? null : !atual ? (
+          <EmptyState titulo="Nenhuma apólice cadastrada" descricao='Use "Renovar" para cadastrar a vigente.' />
+        ) : (() => {
+          const dias = diasAte(atual.data_vencimento);
+          return (
+            <div className="rounded-2xl bg-secondary/60 p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <Badge variant={status(dias)}>{label(dias)}</Badge>
+              </div>
+              <p className="text-[16px] font-extrabold">{atual.apolice} {atual.seguradora ? `— ${atual.seguradora}` : ""}</p>
+              <p className="mb-3 text-[12.5px] text-muted-foreground">
+                {dias < 0 ? `Vencido há ${Math.abs(dias)} dia(s)` : `Faltam ${dias} dia(s) para o vencimento`}
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                <StatCard titulo="Início" valor={formatarDataBR(atual.data_inicio)} />
+                <StatCard titulo="Vencimento" valor={formatarDataBR(atual.data_vencimento)} />
+                <StatCard titulo="Valor" valor={formatarMoeda(atual.valor)} />
+              </div>
+              {atual.observacao && <p className="mt-2 text-[12px] text-muted-foreground">{atual.observacao}</p>}
+            </div>
+          );
+        })()}
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>📋 Histórico de apólices</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!historico.length ? (
-            <p className="text-sm text-muted-foreground">Nenhuma apólice anterior registrada.</p>
-          ) : (
-            <table className="w-full text-sm">
+        <h2 className="mb-3 text-[15px] font-bold">Histórico de apólices</h2>
+        {!historico.length ? (
+          <EmptyState titulo="Nenhuma apólice anterior" />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-[13px]">
               <thead>
-                <tr className="text-left text-[11px] uppercase text-muted-foreground">
-                  <th className="pb-2">Apólice</th>
-                  <th className="pb-2">Seguradora</th>
-                  <th className="pb-2">Início</th>
-                  <th className="pb-2">Vencimento</th>
-                  <th className="pb-2">Valor</th>
+                <tr className="text-left text-[10.5px] font-bold uppercase text-muted-foreground">
+                  <th className="pb-2">Apólice</th><th className="pb-2">Seguradora</th><th className="pb-2">Início</th><th className="pb-2">Vencimento</th><th className="pb-2">Valor</th>
                 </tr>
               </thead>
               <tbody>
@@ -183,52 +139,30 @@ export default function Seguro() {
                 ))}
               </tbody>
             </table>
-          )}
-        </CardContent>
+          </div>
+        )}
       </Card>
 
-      <Modal aberto={modalAberto} aoFechar={() => setModalAberto(false)} titulo="Renovar apólice de seguro">
+      <Modal aberto={modalAberto} aoFechar={() => setModalAberto(false)} titulo="Renovar apólice">
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Número da apólice</Label>
-              <Input value={apolice} onChange={(e) => setApolice(e.target.value)} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Seguradora</Label>
-              <Input value={seguradora} onChange={(e) => setSeguradora(e.target.value)} />
-            </div>
+            <div className="flex flex-col gap-1.5"><Label>Apólice</Label><Input value={apolice} onChange={(e) => setApolice(e.target.value)} /></div>
+            <div className="flex flex-col gap-1.5"><Label>Seguradora</Label><Input value={seguradora} onChange={(e) => setSeguradora(e.target.value)} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Início da vigência</Label>
-              <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Vencimento</Label>
-              <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} />
-            </div>
+            <div className="flex flex-col gap-1.5"><Label>Início</Label><Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} /></div>
+            <div className="flex flex-col gap-1.5"><Label>Vencimento</Label><Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} /></div>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Valor (R$)</Label>
-            <Input type="number" min={0} step={0.01} value={valor} onChange={(e) => setValor(e.target.value)} />
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={lancarDespesa} onChange={(e) => setLancarDespesa(e.target.checked)} />
-            Lançar como despesa no Orçamento (rateado entre cotistas ativos)
+          <div className="flex flex-col gap-1.5"><Label>Valor (R$)</Label><Input type="number" min={0} step={0.01} value={valor} onChange={(e) => setValor(e.target.value)} /></div>
+          <label className="flex items-center gap-2 text-[13px] font-medium">
+            <input type="checkbox" checked={lancarDespesa} onChange={(e) => setLancarDespesa(e.target.checked)} className="h-4 w-4 accent-royal" />
+            Lançar como despesa (rateado)
           </label>
-          <p className="text-xs text-muted-foreground">
-            Saldo atual em caixa: <strong>{formatarMoeda(saldoAtual ?? 0)}</strong>. O caixa não pode ficar negativo.
-          </p>
-          <div className="flex flex-col gap-1.5">
-            <Label>Observação</Label>
-            <Input value={observacao} onChange={(e) => setObservacao(e.target.value)} />
-          </div>
+          <p className="text-[11.5px] text-muted-foreground">Saldo atual: <strong>{formatarMoeda(saldoAtual ?? 0)}</strong></p>
+          <div className="flex flex-col gap-1.5"><Label>Observação</Label><Input value={observacao} onChange={(e) => setObservacao(e.target.value)} /></div>
           <div className="mt-2 flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setModalAberto(false)}>Cancelar</Button>
-            <Button onClick={confirmar} disabled={renovar.isPending}>
-              {renovar.isPending ? "Renovando..." : "Confirmar renovação"}
-            </Button>
+            <Button onClick={confirmar} disabled={renovar.isPending}>{renovar.isPending ? "Renovando..." : "Confirmar"}</Button>
           </div>
         </div>
       </Modal>

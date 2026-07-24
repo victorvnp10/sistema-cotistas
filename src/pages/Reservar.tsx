@@ -1,13 +1,17 @@
 import { useState } from "react";
+import { CalendarPlus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { useFeriados } from "@/lib/queries/useFeriados";
 import { useReservas, useCriarReserva, useCancelarReserva } from "@/lib/queries/useReservas";
 import { construirSetFeriados, contaParaEscala, formatarDataBR, formatarDataISO } from "@/lib/ranking";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { ListItem } from "@/components/ui/list-item";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { Database } from "@/types/database.types";
 
 type Periodo = Database["public"]["Tables"]["reservas"]["Row"]["periodo"];
@@ -54,65 +58,59 @@ export default function Reservar() {
     .sort((a, b) => (a.data < b.data ? -1 : 1));
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 pb-6">
       <Card>
-        <CardHeader>
-          <CardTitle>✅ Nova reserva</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Data</Label>
-              <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Período</Label>
-              <select
-                className="h-10 rounded-md border border-input px-2 text-sm"
-                value={periodo}
-                onChange={(e) => setPeriodo(e.target.value as Periodo)}
-              >
-                <option value="M">Manhã</option>
-                <option value="T">Tarde</option>
-              </select>
-            </div>
-            <Button onClick={reservar} disabled={criar.isPending}>
-              {criar.isPending ? "Reservando..." : "Confirmar reserva"}
-            </Button>
+        <h2 className="mb-4 flex items-center gap-2 text-[15px] font-bold">
+          <CalendarPlus size={18} className="text-royal" /> Nova reserva
+        </h2>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label>Data</Label>
+            <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
           </div>
-        </CardContent>
+          <div className="flex flex-col gap-1.5">
+            <Label>Período</Label>
+            <select
+              className="h-12 rounded-2xl border border-input bg-white px-4 text-[15px]"
+              value={periodo}
+              onChange={(e) => setPeriodo(e.target.value as Periodo)}
+            >
+              <option value="M">Manhã</option>
+              <option value="T">Tarde</option>
+            </select>
+          </div>
+          <Button size="lg" onClick={reservar} disabled={criar.isPending}>
+            {criar.isPending ? "Reservando..." : "Confirmar reserva"}
+          </Button>
+        </div>
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>📋 Minhas reservas futuras</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!minhasFuturas.length ? (
-            <p className="text-sm text-muted-foreground">Nenhuma reserva futura.</p>
-          ) : (
-            <div className="flex flex-col divide-y">
-              {minhasFuturas.map((r) => (
-                <div key={r.id} className="flex items-center justify-between py-2 text-sm">
-                  <span>
-                    <strong>{formatarDataBR(r.data)}</strong> — {r.periodo === "M" ? "Manhã" : "Tarde"}
-                    {contaParaEscala(r.data, feriadosSet) && (
-                      <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700">
-                        conta p/ escala
-                      </span>
-                    )}
-                  </span>
-                  <button
-                    className="text-xs font-semibold text-destructive hover:underline"
-                    onClick={() => cancelarReserva(r.id)}
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
+        <h2 className="mb-3 text-[15px] font-bold">Minhas reservas futuras</h2>
+        {!minhasFuturas.length ? (
+          <EmptyState titulo="Nenhuma reserva futura" descricao="Suas próximas reservas vão aparecer aqui." />
+        ) : (
+          <div className="flex flex-col gap-2">
+            {minhasFuturas.map((r) => (
+              <ListItem
+                key={r.id}
+                title={`${formatarDataBR(r.data)} · ${r.periodo === "M" ? "Manhã" : "Tarde"}`}
+                subtitle={contaParaEscala(r.data, feriadosSet) ? "Conta para a escala de prioridade" : undefined}
+                trailing={
+                  <div className="flex items-center gap-2">
+                    {contaParaEscala(r.data, feriadosSet) && <Badge variant="success">Escala</Badge>}
+                    <button
+                      onClick={() => cancelarReserva(r.id)}
+                      className="text-[12.5px] font-bold text-destructive hover:underline"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                }
+              />
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   );

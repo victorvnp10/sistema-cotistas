@@ -60,3 +60,25 @@ Script foram reconstruídas:
 2. Copie `.env.example` para `.env` e preencha com a Project URL e a anon
    public key.
 3. `npm install` e `npm run dev`.
+
+## Reformulação visual (design system premium)
+
+O layout inteiro foi reconstruído seguindo um briefing de design específico
+(estilo Stripe/Linear/Notion/Revolut), **sem alterar nenhuma regra de
+negócio, hook ou chamada ao banco** — só a camada visual.
+
+O que mudou:
+- Paleta: branco, cinza claro, azul petróleo, azul oceano, azul royal
+  (destaque), verde (sucesso) e vermelho (alerta) apenas em estados
+- Tipografia Inter, cantos arredondados (16–24px), sombras muito suaves
+- Navegação mudou de abas no topo para **Bottom Navigation** (padrão de
+  apps modernos): Início, Agenda, Reservar, Orçamento e "Mais" (que abre
+  um menu com as demais telas — Manutenção, Diário, Seguro, Informações,
+  Painel do Gestor, Cotistas, Feriados — e o botão Sair)
+- Modais viraram **Bottom Sheets** (deslizam de baixo, com fundo
+  desfocado), com animações suaves via Framer Motion
+- Novos componentes reutilizáveis: StatCard, ListItem, Badge, Avatar,
+  EmptyState, SegmentedControl, LoadingSkeleton
+
+Nada de funcionalidade mudou: os mesmos dados, os mesmos cálculos, as
+mesmas permissões — só a aparência.
