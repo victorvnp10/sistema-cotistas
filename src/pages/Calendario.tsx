@@ -1,14 +1,19 @@
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { useMembros } from "@/lib/queries/useMembros";
 import { useFeriados } from "@/lib/queries/useFeriados";
 import { useReservas, useCriarReserva, useCancelarReserva } from "@/lib/queries/useReservas";
-import { construirSetFeriados, contaParaEscala, formatarDataISO } from "@/lib/ranking";
+import { construirSetFeriados, contaParaEscala, formatarDataBR, formatarDataISO } from "@/lib/ranking";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
+import { Badge } from "@/components/ui/badge";
+import { ListItem } from "@/components/ui/list-item";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/types/database.types";
 
@@ -21,6 +26,7 @@ const MESES = [
 const DIAS_SEMANA = ["D", "S", "T", "Q", "Q", "S", "S"];
 
 export default function Calendario() {
+  const { membroAtual } = useAuth();
   const hoje = new Date();
   const [ano, setAno] = useState(hoje.getFullYear());
   const [mes, setMes] = useState(hoje.getMonth());
@@ -29,6 +35,7 @@ export default function Calendario() {
   const { data: feriados } = useFeriados();
   const { data: reservas } = useReservas();
   const [diaSelecionado, setDiaSelecionado] = useState<string | null>(null);
+  const [novaReservaAberta, setNovaReservaAberta] = useState(false);
 
   const feriadosSet = useMemo(() => construirSetFeriados(feriados ?? []), [feriados]);
 
@@ -49,8 +56,12 @@ export default function Calendario() {
     return membros?.find((m) => m.id === id)?.nome ?? "?";
   }
 
+  const minhasFuturas = (reservas ?? [])
+    .filter((r) => r.membro_id === membroAtual?.id && r.status !== "cancelado" && r.data >= hojeISO)
+    .sort((a, b) => (a.data < b.data ? -1 : 1));
+
   return (
-    <div className="flex flex-col gap-4 pb-6">
+    <div className="relative flex flex-col gap-4 pb-6">
       <Card>
         <div className="mb-4 flex items-center justify-between">
           <button onClick={() => mudarMes(-1)} className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary hover:bg-accent">
@@ -103,7 +114,33 @@ export default function Calendario() {
         </div>
       </Card>
 
+      <Card>
+        <h2 className="mb-3 text-[15px] font-bold">Minhas reservas futuras</h2>
+        {!minhasFuturas.length ? (
+          <EmptyState titulo="Nenhuma reserva futura" descricao='Toque no "+" para reservar um turno.' />
+        ) : (
+          <div className="flex flex-col gap-2">
+            {minhasFuturas.map((r) => (
+              <ListItem
+                key={r.id}
+                title={`${formatarDataBR(r.data)} · ${r.periodo === "M" ? "Manhã" : "Tarde"}`}
+                subtitle={contaParaEscala(r.data, feriadosSet) ? "Conta para a escala" : undefined}
+                trailing={contaParaEscala(r.data, feriadosSet) && <Badge variant="success">Escala</Badge>}
+                onClick={() => setDiaSelecionado(r.data)}
+              />
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <Button variant="fab" size="fab" onClick={() => setNovaReservaAberta(true)} aria-label="Nova reserva">
+        <Plus size={26} />
+      </Button>
+
       {diaSelecionado && <ModalDia dataISO={diaSelecionado} aoFechar={() => setDiaSelecionado(null)} />}
+      {novaReservaAberta && (
+        <ModalNovaReserva aoFechar={() => setNovaReservaAberta(false)} aoEscolherDia={(d) => { setNovaReservaAberta(false); setDiaSelecionado(d); }} />
+      )}
     </div>
   );
 }
@@ -114,6 +151,51 @@ function Legenda({ cor, texto }: { cor: string; texto: string }) {
       <span className={cn("h-2.5 w-2.5 rounded-full", cor)} />
       {texto}
     </span>
+  );
+}
+
+/** Sheet aberto pelo botão "+": escolher data/período rapidamente, sem precisar navegar o calendário até o mês certo. */
+function ModalNovaReserva({ aoFechar, aoEscolherDia }: { aoFechar: () => void; aoEscolherDia: (data: string) => void }) {
+  const { membroAtual } = useAuth();
+  const toast = useToast();
+  const criar = useCriarReserva();
+
+  const [data, setData] = useState(formatarDataISO(new Date()));
+  const [periodo, setPeriodo] = useState<Periodo>("M");
+
+  async function reservar() {
+    if (!data) { toast.erro("Selecione uma data."); return; }
+    try {
+      await criar.mutateAsync({ membroId: membroAtual!.id, data, periodo });
+      toast.sucesso("Reserva confirmada!");
+      aoFechar();
+    } catch (e) {
+      toast.erro(e instanceof Error ? e.message : "Erro ao reservar.");
+    }
+  }
+
+  return (
+    <Modal aberto aoFechar={aoFechar} titulo="Nova reserva">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
+          <Label>Data</Label>
+          <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Período</Label>
+          <select className="h-12 rounded-2xl border border-input bg-white px-4 text-[15px]" value={periodo} onChange={(e) => setPeriodo(e.target.value as Periodo)}>
+            <option value="M">Manhã</option>
+            <option value="T">Tarde</option>
+          </select>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex-1" onClick={() => aoEscolherDia(data)}>Ver dia no calendário</Button>
+          <Button className="flex-1" onClick={reservar} disabled={criar.isPending}>
+            {criar.isPending ? "Reservando..." : "Confirmar"}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -176,19 +258,11 @@ function ModalDia({ dataISO, aoFechar }: { dataISO: string; aoFechar: () => void
           <div className="flex flex-col gap-3 border-t border-border/60 pt-4">
             <p className="text-[13.5px] font-bold">Fazer nova reserva</p>
             {ehAdmin && (
-              <select
-                className="h-12 rounded-2xl border border-input bg-white px-4 text-[15px]"
-                value={membroId}
-                onChange={(e) => setMembroId(e.target.value)}
-              >
+              <select className="h-12 rounded-2xl border border-input bg-white px-4 text-[15px]" value={membroId} onChange={(e) => setMembroId(e.target.value)}>
                 {membros?.filter((m) => m.ativo).map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
               </select>
             )}
-            <select
-              className="h-12 rounded-2xl border border-input bg-white px-4 text-[15px]"
-              value={periodo}
-              onChange={(e) => setPeriodo(e.target.value as Periodo)}
-            >
+            <select className="h-12 rounded-2xl border border-input bg-white px-4 text-[15px]" value={periodo} onChange={(e) => setPeriodo(e.target.value as Periodo)}>
               {!resM && <option value="M">Manhã</option>}
               {!resT && <option value="T">Tarde</option>}
             </select>

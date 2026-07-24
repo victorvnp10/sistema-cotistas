@@ -82,3 +82,45 @@ O que mudou:
 
 Nada de funcionalidade mudou: os mesmos dados, os mesmos cálculos, as
 mesmas permissões — só a aparência.
+
+## Mudanças de fluxo e funcionalidade (nova rodada)
+
+### Reservar foi incorporado à Agenda
+A tela "Reservar" separada foi removida. Agora dá pra reservar direto na
+tela **Agenda/Calendário**: clique em um dia para ver/reservar aquele dia
+específico, ou toque no botão flutuante **"+"** no canto inferior direito
+para reservar rapidamente sem precisar navegar até o mês certo. A lista
+"Minhas reservas futuras" também está lá.
+
+O menu inferior agora mostra **Diário de Bordo** no lugar de "Reservar" —
+já que toda vez que alguém usa a embarcação precisa preencher um relatório
+de uso lá.
+
+### Informações Úteis mais espertas
+- Documentos do Google Drive e vídeos do YouTube abrem em uma **visualização
+  rápida** (sem sair do app)
+- Links comuns abrem direto em nova aba com um toque
+- Contatos, PIX e senhas são **copiados automaticamente** ao tocar
+- Excluir agora pede **confirmação dupla** (evita exclusão acidental)
+
+### Controle de quem pode criar novos grupos (IMPORTANTE)
+Agora **só o e-mail `victornogueirapinto@gmail.com`** pode criar um novo
+grupo no sistema — essa regra está no banco de dados (não só escondida na
+tela), então ninguém consegue burlar isso mesmo mexendo no código do
+navegador.
+
+Fluxo de venda para um novo cliente/gestor:
+1. Você (master) faz login e cria um novo grupo, informando **nome e
+   e-mail do administrador** (o gestor responsável por aquele grupo).
+2. Esse gestor recebe, na prática, um convite (mesmo mecanismo de
+   convidar cotistas): ele cria a própria conta com aquele e-mail e já
+   entra como Admin do grupo dele.
+3. A partir daí, ele mesmo cadastra os cotistas do grupo dele — sem
+   precisar de você.
+
+Qualquer outra pessoa que criar conta sem ter sido convidada por ninguém
+cai numa tela de **"Aguardando convite"**, sem conseguir criar grupo
+nenhum.
+
+⚠️ **Você precisa rodar mais um arquivo SQL** para ativar essa proteção:
+`supabase/migrations/0008_grupo_apenas_master.sql`

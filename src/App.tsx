@@ -1,10 +1,11 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { MASTER_EMAIL } from "@/lib/constants";
 import Login from "@/pages/Login";
 import CriarGrupo from "@/pages/CriarGrupo";
+import AguardandoConvite from "@/pages/AguardandoConvite";
 import Dashboard from "@/pages/Dashboard";
 import Calendario from "@/pages/Calendario";
-import Reservar from "@/pages/Reservar";
 import Cotistas from "@/pages/Cotistas";
 import Feriados from "@/pages/Feriados";
 import Orcamento from "@/pages/Orcamento";
@@ -28,12 +29,11 @@ export default function App() {
 
   if (carregando) return <TelaCarregando />;
 
+  const ehMaster = session?.user.email === MASTER_EMAIL;
+
   return (
     <Routes>
-      <Route
-        path="/login"
-        element={session ? <Navigate to="/" replace /> : <Login />}
-      />
+      <Route path="/login" element={session ? <Navigate to="/" replace /> : <Login />} />
       <Route
         path="/criar-grupo"
         element={
@@ -41,8 +41,24 @@ export default function App() {
             <Navigate to="/login" replace />
           ) : membresias.length > 0 ? (
             <Navigate to="/" replace />
-          ) : (
+          ) : ehMaster ? (
             <CriarGrupo />
+          ) : (
+            <Navigate to="/aguardando-convite" replace />
+          )
+        }
+      />
+      <Route
+        path="/aguardando-convite"
+        element={
+          !session ? (
+            <Navigate to="/login" replace />
+          ) : membresias.length > 0 ? (
+            <Navigate to="/" replace />
+          ) : ehMaster ? (
+            <Navigate to="/criar-grupo" replace />
+          ) : (
+            <AguardandoConvite />
           )
         }
       />
@@ -52,13 +68,12 @@ export default function App() {
           !session ? (
             <Navigate to="/login" replace />
           ) : membresias.length === 0 ? (
-            <Navigate to="/criar-grupo" replace />
+            <Navigate to={ehMaster ? "/criar-grupo" : "/aguardando-convite"} replace />
           ) : (
             <AppLayout>
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/calendario" element={<Calendario />} />
-                <Route path="/reservar" element={<Reservar />} />
                 <Route path="/orcamento" element={<Orcamento />} />
                 <Route path="/manutencao" element={<Manutencao />} />
                 <Route path="/diario" element={<Diario />} />

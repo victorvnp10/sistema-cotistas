@@ -3,11 +3,10 @@ import { useNavigate } from "react-router-dom";
 import {
   Home,
   CalendarDays,
-  CheckCircle2,
+  BookOpen,
   Wallet,
   MoreHorizontal,
   Wrench,
-  BookOpen,
   ShieldCheck,
   Info,
   BarChart3,
@@ -29,14 +28,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const itensPrincipais: ItemNav[] = [
     { to: "/", label: "Início", icon: <Home size={21} strokeWidth={2.1} /> },
     { to: "/calendario", label: "Agenda", icon: <CalendarDays size={21} strokeWidth={2.1} /> },
-    { to: "/reservar", label: "Reservar", icon: <CheckCircle2 size={21} strokeWidth={2.1} /> },
+    { to: "/diario", label: "Diário", icon: <BookOpen size={21} strokeWidth={2.1} /> },
     { to: "/orcamento", label: "Orçamento", icon: <Wallet size={21} strokeWidth={2.1} /> },
     { label: "Mais", icon: <MoreHorizontal size={21} strokeWidth={2.1} />, onClick: () => setMaisAberto(true) },
   ];
 
   const itensMais = [
     { to: "/manutencao", label: "Manutenção", icon: <Wrench size={18} /> },
-    { to: "/diario", label: "Diário de Bordo", icon: <BookOpen size={18} /> },
     { to: "/seguro", label: "Seguro", icon: <ShieldCheck size={18} /> },
     { to: "/informacoes", label: "Informações Úteis", icon: <Info size={18} /> },
     ...(podeGerenciarOrcamento

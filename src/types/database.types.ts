@@ -553,7 +553,8 @@ export interface Database {
           p_nome: string;
           p_nome_recurso: string;
           p_dia_virada: number;
-          p_nome_admin: string;
+          p_admin_nome: string;
+          p_admin_email: string;
         };
         Returns: Database["public"]["Tables"]["grupos"]["Row"];
       };

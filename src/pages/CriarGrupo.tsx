@@ -9,6 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
+/**
+ * Tela de PROVISIONAMENTO -- só o usuário master chega aqui (ver App.tsx).
+ * Ele cria o grupo e já indica quem vai ser o Admin (o novo gestor/cliente),
+ * que recebe um convite por e-mail -- o mesmo mecanismo usado para
+ * convidar cotistas. O master não precisa ser admin do grupo que cria.
+ */
 export default function CriarGrupo() {
   const navigate = useNavigate();
   const { session, recarregarMembresias, selecionarGrupo } = useAuth();
@@ -16,7 +22,8 @@ export default function CriarGrupo() {
   const [nome, setNome] = useState("");
   const [nomeRecurso, setNomeRecurso] = useState("Embarcação");
   const [diaVirada, setDiaVirada] = useState(4);
-  const [nomeAdmin, setNomeAdmin] = useState("");
+  const [adminNome, setAdminNome] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -30,7 +37,8 @@ export default function CriarGrupo() {
       p_nome: nome,
       p_nome_recurso: nomeRecurso,
       p_dia_virada: diaVirada,
-      p_nome_admin: nomeAdmin || session.user.email || "Admin",
+      p_admin_nome: adminNome,
+      p_admin_email: adminEmail,
     });
 
     if (erroGrupo || !grupo) {
@@ -58,10 +66,11 @@ export default function CriarGrupo() {
             <div className="mb-1 flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-royal to-ocean text-white shadow-soft">
               <Anchor size={26} />
             </div>
-            <CardTitle className="text-[20px]">Criar novo grupo</CardTitle>
+            <CardTitle className="text-[20px]">Provisionar novo grupo</CardTitle>
             <CardDescription>
-              Cada grupo é totalmente independente — dados, cotistas e finanças não se
-              misturam entre grupos diferentes.
+              Você é o usuário master. Crie o grupo e indique quem será o
+              administrador (o gestor responsável por cadastrar os cotistas) —
+              ele recebe um convite pelo e-mail informado.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -71,38 +80,40 @@ export default function CriarGrupo() {
                 <Input required value={nome} onChange={(e) => setNome(e.target.value)} placeholder='Ex: "Amigos - Jolly Roger"' />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label>Como vocês chamam o que é compartilhado?</Label>
-                <Input
-                  required
-                  value={nomeRecurso}
-                  onChange={(e) => setNomeRecurso(e.target.value)}
-                  placeholder='Ex: "Embarcação", "Cabana", "Chácara"'
-                />
+                <Label>Como chamam o que é compartilhado?</Label>
+                <Input required value={nomeRecurso} onChange={(e) => setNomeRecurso(e.target.value)} placeholder='Ex: "Embarcação", "Cabana"' />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label>Dia de virada do mês (cobrança)</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={28}
-                  required
-                  value={diaVirada}
-                  onChange={(e) => setDiaVirada(Number(e.target.value))}
-                />
-                <p className="text-[12px] text-muted-foreground">
-                  Dia do mês em que mensalidades/taxas recorrentes são devidas. Pode mudar
-                  depois nas configurações do grupo.
-                </p>
+                <Input type="number" min={1} max={28} required value={diaVirada} onChange={(e) => setDiaVirada(Number(e.target.value))} />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Seu nome (você será o administrador)</Label>
-                <Input required value={nomeAdmin} onChange={(e) => setNomeAdmin(e.target.value)} placeholder="Seu nome completo" />
+              <div className="border-t border-border/60 pt-3">
+                <p className="mb-3 text-[12.5px] font-bold uppercase tracking-wide text-muted-foreground">
+                  Administrador deste grupo
+                </p>
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Nome do administrador</Label>
+                    <Input required value={adminNome} onChange={(e) => setAdminNome(e.target.value)} placeholder="Nome do gestor/cliente" />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>E-mail do administrador</Label>
+                    <Input
+                      type="email"
+                      required
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
+                      placeholder="email@dogestor.com"
+                    />
+                    <p className="text-[12px] text-muted-foreground">
+                      Essa pessoa deve se cadastrar no app usando exatamente este e-mail.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {erro && (
-                <p className="rounded-xl bg-destructive/10 px-3 py-2 text-[13px] font-medium text-destructive">
-                  {erro}
-                </p>
+                <p className="rounded-xl bg-destructive/10 px-3 py-2 text-[13px] font-medium text-destructive">{erro}</p>
               )}
 
               <Button type="submit" size="lg" className="w-full" disabled={carregando}>
