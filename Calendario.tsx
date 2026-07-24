@@ -39,11 +39,17 @@ function status(dias: number) {
 }
 
 const LABELS: Record<string, string> = {
-  normal: "Em dia", alert: "Atenção", warn: "Renovar em breve", urgent: "Urgente", venc: "Vencido",
+  normal: "Em dia",
+  alert: "Atenção",
+  warn: "Renovar em breve",
+  urgent: "Urgente",
+  venc: "Vencido",
 };
 const CORES: Record<string, string> = {
-  normal: "border-sky-500 bg-sky-50", alert: "border-yellow-400 bg-yellow-50",
-  warn: "border-orange-500 bg-orange-50", urgent: "border-purple-500 bg-purple-50",
+  normal: "border-sky-500 bg-sky-50",
+  alert: "border-yellow-400 bg-yellow-50",
+  warn: "border-orange-500 bg-orange-50",
+  urgent: "border-purple-500 bg-purple-50",
   venc: "border-red-600 bg-red-50",
 };
 
@@ -72,9 +78,10 @@ export default function Seguro() {
   const [observacao, setObservacao] = useState("");
 
   function abrirRenovar() {
-    const inicioSugerido = atual && diasAte(atual.data_vencimento) >= 0
-      ? new Date(new Date(atual.data_vencimento).getTime() + 86400000).toISOString().slice(0, 10)
-      : hoje;
+    const inicioSugerido =
+      atual && diasAte(atual.data_vencimento) >= 0
+        ? new Date(new Date(atual.data_vencimento).getTime() + 86400000).toISOString().slice(0, 10)
+        : hoje;
     const fimSugerido = new Date(inicioSugerido);
     fimSugerido.setFullYear(fimSugerido.getFullYear() + 1);
     fimSugerido.setDate(fimSugerido.getDate() - 1);
@@ -109,14 +116,24 @@ export default function Seguro() {
     try {
       if (editando) {
         await atualizar.mutateAsync({
-          id: editando.id, apolice, seguradora, dataInicio,
-          valor: Number(valor) || 0, dataVencimento: dataFim, observacao,
+          id: editando.id,
+          apolice,
+          seguradora,
+          dataInicio,
+          valor: Number(valor) || 0,
+          dataVencimento: dataFim,
+          observacao,
         });
         toast.sucesso("Apólice atualizada!");
       } else {
         await renovar.mutateAsync({
-          apolice, seguradora, dataInicio, valor: Number(valor) || 0,
-          dataVencimento: dataFim, lancarDespesa, observacao,
+          apolice,
+          seguradora,
+          dataInicio,
+          valor: Number(valor) || 0,
+          dataVencimento: dataFim,
+          lancarDespesa,
+          observacao,
         });
         toast.sucesso("Apólice renovada com sucesso!");
       }
@@ -141,46 +158,60 @@ export default function Seguro() {
     <div className="flex flex-col gap-4 pb-6">
       <Card>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-[15px] font-bold"><ShieldCheck size={17} className="text-royal" /> Seguro obrigatório</h2>
+          <h2 className="flex items-center gap-2 text-[15px] font-bold">
+            <ShieldCheck size={17} className="text-royal" /> Seguro obrigatório
+          </h2>
           {podeGerenciarOrcamento && <Button size="sm" onClick={abrirRenovar}>Renovar</Button>}
         </div>
         {isLoading ? null : !atual ? (
           <EmptyState titulo="Nenhuma apólice cadastrada" descricao='Use "Renovar" para cadastrar a vigente.' />
-        ) : (() => {
-          const dias = diasAte(atual.data_vencimento);
-          const st = status(dias);
-          return (
-            <div className={cn("rounded-lg border-l-4 p-4", CORES[st])}>
-              <div className="mb-2 flex items-center justify-between">
-                <Badge variant={st === "normal" ? "success" : st === "venc" ? "error" : "warning"}>{LABELS[st]}</Badge>
-                {podeGerenciarOrcamento && (
-                  <div className="flex gap-2">
-                    <button onClick={() => abrirEditar(atual)} className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-muted-foreground hover:text-royal" title="Editar">
-                      <Pencil size={14} />
-                    </button>
-                    {ehAdmin && (
-                      <button onClick={() => setExcluindo(atual)} className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-muted-foreground hover:text-destructive" title="Excluir">
-                        <Trash2 size={14} />
+        ) : (
+          (() => {
+            const dias = diasAte(atual.data_vencimento);
+            const st = status(dias);
+            return (
+              <div className={cn("rounded-lg border-l-4 p-4", CORES[st])}>
+                <div className="mb-2 flex items-center justify-between">
+                  <Badge variant={st === "normal" ? "success" : st === "venc" ? "error" : "warning"}>
+                    {LABELS[st]}
+                  </Badge>
+                  {podeGerenciarOrcamento && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => abrirEditar(atual)}
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-muted-foreground hover:text-royal"
+                        title="Editar"
+                      >
+                        <Pencil size={14} />
                       </button>
-                    )}
-                  </div>
-                )}
+                      {ehAdmin && (
+                        <button
+                          onClick={() => setExcluindo(atual)}
+                          className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-muted-foreground hover:text-destructive"
+                          title="Excluir"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <p className="text-lg font-extrabold">
+                  Apólice {atual.apolice} {atual.seguradora ? `— ${atual.seguradora}` : ""}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {dias < 0 ? `Vencido há ${Math.abs(dias)} dia(s)` : `Faltam ${dias} dia(s) para o vencimento`}
+                </p>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <StatCard titulo="Início" valor={formatarDataBR(atual.data_inicio)} />
+                  <StatCard titulo="Vencimento" valor={formatarDataBR(atual.data_vencimento)} />
+                  <StatCard titulo="Valor" valor={formatarMoeda(atual.valor)} />
+                </div>
+                {atual.observacao && <p className="mt-2 text-xs text-muted-foreground">{atual.observacao}</p>}
               </div>
-              <p className="text-lg font-extrabold">
-                Apólice {atual.apolice} {atual.seguradora ? `— ${atual.seguradora}` : ""}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {dias < 0 ? `Vencido há ${Math.abs(dias)} dia(s)` : `Faltam ${dias} dia(s) para o vencimento`}
-              </p>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                <StatCard titulo="Início" valor={formatarDataBR(atual.data_inicio)} />
-                <StatCard titulo="Vencimento" valor={formatarDataBR(atual.data_vencimento)} />
-                <StatCard titulo="Valor" valor={formatarMoeda(atual.valor)} />
-              </div>
-              {atual.observacao && <p className="mt-2 text-xs text-muted-foreground">{atual.observacao}</p>}
-            </div>
-          );
-        })()}
+            );
+          })()
+        )}
       </Card>
 
       <Card>
@@ -192,8 +223,11 @@ export default function Seguro() {
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="text-left text-[10.5px] font-bold uppercase text-muted-foreground">
-                  <th className="pb-2">Apólice</th><th className="pb-2">Seguradora</th><th className="pb-2">Início</th>
-                  <th className="pb-2">Vencimento</th><th className="pb-2">Valor</th>
+                  <th className="pb-2">Apólice</th>
+                  <th className="pb-2">Seguradora</th>
+                  <th className="pb-2">Início</th>
+                  <th className="pb-2">Vencimento</th>
+                  <th className="pb-2">Valor</th>
                   {podeGerenciarOrcamento && <th className="pb-2"></th>}
                 </tr>
               </thead>
@@ -256,10 +290,17 @@ export default function Seguro() {
           {!editando && (
             <>
               <label className="flex items-center gap-2 text-[13px] font-medium">
-                <input type="checkbox" checked={lancarDespesa} onChange={(e) => setLancarDespesa(e.target.checked)} className="h-4 w-4 accent-royal" />
+                <input
+                  type="checkbox"
+                  checked={lancarDespesa}
+                  onChange={(e) => setLancarDespesa(e.target.checked)}
+                  className="h-4 w-4 accent-royal"
+                />
                 Lançar como despesa (rateado)
               </label>
-              <p className="text-[11.5px] text-muted-foreground">Saldo atual: <strong>{formatarMoeda(saldoAtual ?? 0)}</strong></p>
+              <p className="text-[11.5px] text-muted-foreground">
+                Saldo atual: <strong>{formatarMoeda(saldoAtual ?? 0)}</strong>
+              </p>
             </>
           )}
           <div className="flex flex-col gap-1.5">
