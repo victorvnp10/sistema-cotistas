@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Neutros */
+    --background: 210 25% 98%;
+    --foreground: 215 30% 14%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 30% 14%;
+
+    --muted: 210 20% 95%;
+    --muted-foreground: 215 12% 45%;
+
+    --secondary: 210 25% 96%;
+    --secondary-foreground: 215 30% 14%;
+
+    --accent: 213 60% 96%;
+    --accent-foreground: 215 30% 14%;
+
+    --border: 213 20% 90%;
+    --input: 213 20% 90%;
+
+    /* Paleta principal do briefing */
+    --petrol: 195 55% 22%;   /* azul petróleo */
+    --ocean: 205 65% 38%;    /* azul oceano */
+    --royal: 226 71% 55%;    /* azul royal — cor de destaque/primária */
+
+    --primary: 226 71% 55%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 226 71% 55%;
+
+    --success: 152 55% 38%;
+    --success-foreground: 0 0% 100%;
+    --success-soft: 152 60% 94%;
+
+    --warning: 32 90% 50%;
+    --warning-soft: 32 90% 95%;
+
+    --destructive: 4 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --radius: 1.25rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  ::selection {
+    @apply bg-royal/15;
+  }
+}
+
+@layer utilities {
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+  .scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }
+}
+
+@media print {
+  @page { size: A4; margin: 14mm; }
+  .no-print { display: none !important; }
+  header, nav { display: none !important; }
+  body { background: #fff; }
+}
