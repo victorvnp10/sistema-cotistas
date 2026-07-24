@@ -301,6 +301,7 @@ export interface Database {
           proxima_data: string | null;
           intervalo_horas: number | null;
           horimetro_base: number;
+          data_inicio_ciclo: string;
           custo_previsto: number | null;
           custo_real: number | null;
           feito: boolean;
@@ -318,6 +319,7 @@ export interface Database {
           proxima_data?: string | null;
           intervalo_horas?: number | null;
           horimetro_base?: number;
+          data_inicio_ciclo?: string;
           custo_previsto?: number | null;
           custo_real?: number | null;
           feito?: boolean;
@@ -510,9 +512,26 @@ export interface Database {
         };
         Returns: void;
       };
-      concluir_manutencao_horas: {
-        Args: { p_manutencao_id: string; p_custo_real: number };
+      concluir_manutencao: {
+        Args: {
+          p_manutencao_id: string;
+          p_data_fechamento: string;
+          p_custo_real?: number | null;
+          p_reagendar_dias?: number | null;
+        };
         Returns: void;
+      };
+      horas_membro_periodo: {
+        Args: { p_membro_id: string; p_data_inicio: string; p_data_fim?: string | null };
+        Returns: number;
+      };
+      horas_grupo_periodo: {
+        Args: { p_grupo_id: string; p_data_inicio: string; p_data_fim?: string | null };
+        Returns: number;
+      };
+      horas_por_membro_periodo: {
+        Args: { p_grupo_id: string; p_data_inicio: string; p_data_fim?: string | null };
+        Returns: { membro_id: string; horas: number }[];
       };
       projecao_manutencao_horas: {
         Args: { p_grupo_id: string };
@@ -520,9 +539,9 @@ export interface Database {
           manutencao_id: string;
           descricao: string;
           proxima_data: string | null;
-          horimetro_base: number;
+          data_inicio_ciclo: string;
           intervalo_horas: number;
-          horimetro_atual: number;
+          horas_usadas: number;
           horas_restantes: number;
           custo_previsto: number;
           membro_id: string;
@@ -615,13 +634,12 @@ export interface PainelGestor {
   } | null;
   proximaManutencao: {
     descricao: string;
-    tipoGatilho: TipoGatilhoManutencao;
     periodicidade: string | null;
     proximaData: string | null;
     horimetroAtual: number | null;
     horasRestantes: number | null;
-    custoPrevisto: number;
     diasParaVencer: number | null;
+    custoPrevisto: number;
   } | null;
   custosVariaveis: {
     custoCombustivelPorHora: number;
@@ -630,8 +648,8 @@ export interface PainelGestor {
       descricao: string;
       proximaData: string | null;
       intervaloHoras: number | null;
-      horimetroBase: number;
-      horimetroAtual: number;
+      dataInicioCiclo: string;
+      horasUsadas: number;
       horasRestantes: number;
       custoPrevisto: number;
     }[];
