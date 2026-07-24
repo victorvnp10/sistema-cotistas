@@ -128,7 +128,7 @@ export default function Informacoes() {
                       <button
                         key={info.id}
                         onClick={() => aoClicarValor(info)}
-                        className="flex items-center gap-2 rounded-2xl border border-border/60 bg-white p-3 text-left transition-colors hover:bg-secondary/60 active:scale-[0.99]"
+                        className="flex min-w-0 items-center gap-2 rounded-2xl border border-border/60 bg-white p-3 text-left transition-colors hover:bg-secondary/60 active:scale-[0.99]"
                       >
                         <div className="min-w-0 flex-1">
                           <p className="text-[10px] font-bold uppercase text-muted-foreground">{info.rotulo}</p>
