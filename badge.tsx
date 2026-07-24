@@ -77,7 +77,7 @@ export default function Calendario() {
         <div className="mb-3 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
           <Legenda cor="bg-royal" texto="Manhã ocupada" />
           <Legenda cor="bg-ocean" texto="Tarde ocupada" />
-          <Legenda cor="bg-success-soft" texto="Conta p/ escala (fim de semana ou feriado)" />
+          <Legenda cor="bg-success-soft" texto="Livre" />
         </div>
 
         <div className="grid grid-cols-7 gap-1.5">
@@ -89,9 +89,6 @@ export default function Calendario() {
             const dia = i + 1;
             const dataISO = `${ano}-${String(mes + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
             const conta = contaParaEscala(dataISO, feriadosSet);
-            const diaSemana = new Date(dataISO + "T12:00:00").getDay();
-            const ehFeriado = feriadosSet.has(dataISO) && diaSemana !== 0 && diaSemana !== 6;
-            const nomeFeriado = feriados?.find((f) => f.data === dataISO)?.descricao;
             const resM = reservas?.find((r) => r.data === dataISO && r.periodo === "M" && r.status !== "cancelado");
             const resT = reservas?.find((r) => r.data === dataISO && r.periodo === "T" && r.status !== "cancelado");
 
@@ -99,16 +96,12 @@ export default function Calendario() {
               <button
                 key={dataISO}
                 onClick={() => setDiaSelecionado(dataISO)}
-                title={nomeFeriado}
                 className={cn(
-                  "relative flex min-h-[58px] flex-col rounded-xl border p-1 text-left transition-transform active:scale-95",
+                  "flex min-h-[58px] flex-col rounded-xl border p-1 text-left transition-transform active:scale-95",
                   conta ? "border-success/20 bg-success-soft/40" : "border-border/50 bg-white",
                   dataISO === hojeISO && "ring-2 ring-royal ring-offset-1"
                 )}
               >
-                {ehFeriado && (
-                  <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-success" />
-                )}
                 <span className="mb-0.5 text-[11px] font-bold">{dia}</span>
                 <span className={cn("mb-0.5 truncate rounded-md px-1 py-0.5 text-[9px] font-bold text-white", resM ? "bg-royal" : "bg-transparent text-transparent")}>
                   {resM ? nomeMembro(resM.membro_id) : "-"}
@@ -121,25 +114,6 @@ export default function Calendario() {
           })}
         </div>
       </Card>
-
-      {ehAlgumFeriadoNoMes(feriados, ano, mes) && (
-        <Card variant="flat">
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-            🎉 Feriados este mês (contam para a escala)
-          </p>
-          <div className="flex flex-col gap-1">
-            {feriados!
-              .filter((f) => f.data.startsWith(`${ano}-${String(mes + 1).padStart(2, "0")}`))
-              .sort((a, b) => (a.data < b.data ? -1 : 1))
-              .map((f) => (
-                <div key={f.id} className="flex justify-between text-[12.5px]">
-                  <span className="font-semibold">{formatarDataBR(f.data)}</span>
-                  <span className="text-muted-foreground">{f.descricao}</span>
-                </div>
-              ))}
-          </div>
-        </Card>
-      )}
 
       <Card>
         <h2 className="mb-3 text-[15px] font-bold">Minhas reservas futuras</h2>
@@ -181,16 +155,6 @@ function Legenda({ cor, texto }: { cor: string; texto: string }) {
       {texto}
     </span>
   );
-}
-
-function ehAlgumFeriadoNoMes(
-  feriados: { data: string }[] | undefined,
-  ano: number,
-  mes: number
-): boolean {
-  if (!feriados?.length) return false;
-  const prefixo = `${ano}-${String(mes + 1).padStart(2, "0")}`;
-  return feriados.some((f) => f.data.startsWith(prefixo));
 }
 
 /** Sheet aberto pelo botão "+": escolher data/período rapidamente, sem precisar navegar o calendário até o mês certo. */

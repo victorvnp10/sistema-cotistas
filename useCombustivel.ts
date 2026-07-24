@@ -107,10 +107,6 @@ export function calcularProximosDias(
       reservas.find((r) => r.data === dataISO && r.periodo === "T" && r.status !== "cancelado") ??
       null;
 
-    // Dia sem nenhum turno livre não é útil pra esta lista — pula sem contar
-    // como um dos "maxResultados" (continua procurando o próximo dia com vaga).
-    if (reservaManha && reservaTarde) continue;
-
     let descricao = "";
     const dow = d.getDay();
     if (dow === 0) descricao = "Domingo";
