@@ -107,4 +107,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const ehAdmin = membroAtual?.role === "admin";
   const ehMaster = session?.user.email === MASTER_EMAIL;
-  const
+  const podeGerenciarOrcamento: boolean =
+    membroAtual?.role === "admin" || membroAtual?.role === "gestor";
+
+  const value: AuthContextValue = {
+    carregando,
+    session,
+    membresias,
+    grupoAtual,
+    membroAtual,
+    selecionarGrupo,
+    podeGerenciarOrcamento,
+    ehAdmin,
+    ehMaster,
+    recarregarMembresias: carregarMembresias,
+    sair,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth precisa estar dentro de <AuthProvider>");
+  return ctx;
+}
+
+export type { Papel };
