@@ -2,98 +2,72 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
-export function useSeguros() {
+export function useHistoricoCombustivel() {
   const { grupoAtual } = useAuth();
   return useQuery({
-    queryKey: ["seguros", grupoAtual?.id],
+    queryKey: ["historico-combustivel", grupoAtual?.id],
     enabled: !!grupoAtual,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("seguros")
+        .from("historico_custo_combustivel")
         .select("*")
         .eq("grupo_id", grupoAtual!.id)
-        .order("data_vencimento", { ascending: false });
+        .order("vigencia_inicio", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
   });
 }
 
-export function useRenovarSeguro() {
+export function useDefinirCustoCombustivel() {
   const queryClient = useQueryClient();
   const { grupoAtual } = useAuth();
   return useMutation({
     mutationFn: async (payload: {
-      apolice: string;
-      seguradora: string;
-      dataInicio: string;
-      valor: number;
-      dataVencimento: string;
-      lancarDespesa: boolean;
-      observacao?: string;
+      consumoPorHora: number;
+      custoUnidade: number;
+      unidades: number;
+      dataInicio?: string;
     }) => {
-      const { error } = await supabase.rpc("renovar_seguro", {
+      const { error } = await supabase.rpc("definir_custo_combustivel", {
         p_grupo_id: grupoAtual!.id,
-        p_apolice: payload.apolice,
-        p_seguradora: payload.seguradora || null,
+        p_consumo_por_hora: payload.consumoPorHora,
+        p_custo_unidade: payload.custoUnidade,
+        p_unidades: payload.unidades,
         p_data_inicio: payload.dataInicio,
-        p_valor: payload.valor,
-        p_data_vencimento: payload.dataVencimento,
-        p_lancar_despesa: payload.lancarDespesa,
-        p_observacao: payload.observacao ?? null,
       });
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["seguros", grupoAtual?.id] });
-      queryClient.invalidateQueries({ queryKey: ["saldo-atual", grupoAtual?.id] });
-      queryClient.invalidateQueries({ queryKey: ["lancamentos", grupoAtual?.id] });
-    },
+    onSuccess: () => invalidar(queryClient, grupoAtual?.id),
   });
 }
 
-export function useAtualizarSeguro() {
+export function useEditarCustoCombustivelAtual() {
   const queryClient = useQueryClient();
   const { grupoAtual } = useAuth();
   return useMutation({
     mutationFn: async (payload: {
       id: string;
-      apolice: string;
-      seguradora: string;
+      consumoPorHora: number;
+      custoUnidade: number;
+      unidades: number;
       dataInicio: string;
-      dataVencimento: string;
-      valor: number;
-      observacao?: string;
     }) => {
-      const { error } = await supabase
-        .from("seguros")
-        .update({
-          apolice: payload.apolice,
-          seguradora: payload.seguradora || null,
-          data_inicio: payload.dataInicio,
-          data_vencimento: payload.dataVencimento,
-          valor: payload.valor,
-          observacao: payload.observacao || null,
-        })
-        .eq("id", payload.id);
+      const { error } = await supabase.rpc("editar_custo_combustivel_atual", {
+        p_id: payload.id,
+        p_consumo_por_hora: payload.consumoPorHora,
+        p_custo_unidade: payload.custoUnidade,
+        p_unidades: payload.unidades,
+        p_data_inicio: payload.dataInicio,
+      });
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["seguros", grupoAtual?.id] });
-    },
+    onSuccess: () => invalidar(queryClient, grupoAtual?.id),
   });
 }
 
-export function useExcluirSeguro() {
-  const queryClient = useQueryClient();
-  const { grupoAtual } = useAuth();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("seguros").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["seguros", grupoAtual?.id] });
-    },
-  });
+function invalidar(queryClient: ReturnType<typeof useQueryClient>, grupoId: string | undefined) {
+  queryClient.invalidateQueries({ queryKey: ["historico-combustivel", grupoId] });
+  queryClient.invalidateQueries({ queryKey: ["mensalidade-membro"] });
+  queryClient.invalidateQueries({ queryKey: ["mensalidades-todos", grupoId] });
 }

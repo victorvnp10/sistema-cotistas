@@ -3,47 +3,61 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/types/database.types";
 
-type Membro = Database["public"]["Tables"]["grupo_membros"]["Row"];
-type MembroInsert = Database["public"]["Tables"]["grupo_membros"]["Insert"];
-type MembroUpdate = Database["public"]["Tables"]["grupo_membros"]["Update"];
+type Periodo = Database["public"]["Tables"]["reservas"]["Row"]["periodo"];
 
-export function useMembros() {
+export function useReservas() {
   const { grupoAtual } = useAuth();
   return useQuery({
-    queryKey: ["membros", grupoAtual?.id],
+    queryKey: ["reservas", grupoAtual?.id],
     enabled: !!grupoAtual,
-    queryFn: async (): Promise<Membro[]> => {
+    queryFn: async () => {
       const { data, error } = await supabase
-        .from("grupo_membros")
+        .from("reservas")
         .select("*")
         .eq("grupo_id", grupoAtual!.id)
-        .order("nome");
+        .order("data");
       if (error) throw error;
       return data ?? [];
     },
   });
 }
 
-export function useSalvarMembro() {
+export function useCriarReserva() {
   const queryClient = useQueryClient();
   const { grupoAtual } = useAuth();
 
   return useMutation({
-    mutationFn: async (payload: { id?: string } & Omit<MembroInsert, "grupo_id">) => {
-      if (payload.id) {
-        const { id, ...resto } = payload;
-        const update: MembroUpdate = resto;
-        const { error } = await supabase.from("grupo_membros").update(update).eq("id", id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("grupo_membros")
-          .insert({ ...payload, grupo_id: grupoAtual!.id });
-        if (error) throw error;
+    mutationFn: async (payload: { membroId: string; data: string; periodo: Periodo }) => {
+      const { error } = await supabase.from("reservas").insert({
+        grupo_id: grupoAtual!.id,
+        membro_id: payload.membroId,
+        data: payload.data,
+        periodo: payload.periodo,
+      });
+      if (error) {
+        // Violação do índice único de turno = alguém reservou primeiro
+        if (error.code === "23505") {
+          throw new Error("Esse turno acabou de ser reservado por outra pessoa.");
+        }
+        throw error;
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["membros", grupoAtual?.id] });
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["reservas", grupoAtual?.id] }),
+  });
+}
+
+export function useCancelarReserva() {
+  const queryClient = useQueryClient();
+  const { grupoAtual } = useAuth();
+
+  return useMutation({
+    mutationFn: async (reservaId: string) => {
+      const { error } = await supabase
+        .from("reservas")
+        .update({ status: "cancelado" })
+        .eq("id", reservaId);
+      if (error) throw error;
     },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["reservas", grupoAtual?.id] }),
   });
 }

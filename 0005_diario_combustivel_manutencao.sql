@@ -1,39 +1,29 @@
-import { motion } from "framer-motion";
-import { MailQuestion } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "@/lib/utils";
 
-export default function AguardandoConvite() {
-  const { session, sair } = useAuth();
+const badgeVariants = cva(
+  "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold whitespace-nowrap",
+  {
+    variants: {
+      variant: {
+        info: "bg-accent text-royal",
+        success: "bg-success-soft text-success",
+        warning: "bg-warning-soft text-warning",
+        error: "bg-destructive/10 text-destructive",
+        neutral: "bg-secondary text-muted-foreground",
+      },
+    },
+    defaultVariants: { variant: "neutral" },
+  }
+);
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-petrol via-ocean to-royal p-5">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: "easeOut" }}
-        className="w-full max-w-sm"
-      >
-        <Card className="shadow-floating text-center">
-          <CardContent className="flex flex-col items-center gap-4 py-2">
-            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-accent text-royal">
-              <MailQuestion size={26} />
-            </div>
-            <div>
-              <h1 className="text-[19px] font-extrabold tracking-tight">Aguardando convite</h1>
-              <p className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
-                Sua conta ainda não está vinculada a nenhum grupo. Peça ao administrador do
-                seu grupo para te cadastrar como cotista usando exatamente este e-mail:
-              </p>
-              <p className="mt-3 rounded-xl bg-secondary px-3 py-2 text-[13.5px] font-bold">
-                {session?.user.email}
-              </p>
-            </div>
-            <Button variant="ghost" onClick={sair}>Sair</Button>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </div>
-  );
+export interface BadgeProps
+  extends React.HTMLAttributes<HTMLSpanElement>,
+    VariantProps<typeof badgeVariants> {}
+
+function Badge({ className, variant, ...props }: BadgeProps) {
+  return <span className={cn(badgeVariants({ variant, className }))} {...props} />;
 }
+
+export { Badge, badgeVariants };
