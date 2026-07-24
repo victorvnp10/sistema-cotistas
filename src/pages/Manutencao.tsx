@@ -259,12 +259,13 @@ function ModalFormManutencao({ aberto, editando, horimetroAtual, aoFechar }: { a
               <Input type="number" min={0} step={0.01} value={custoPrevisto} onChange={(e) => setCustoPrevisto(e.target.value)} />
             </div>
             <div className="col-span-2 flex flex-col gap-1.5">
-              <Label>Horímetro base (início da contagem)</Label>
-              <Input type="number" min={0} step={0.1} value={horimetroBase} onChange={(e) => setHorimetroBase(e.target.value)} />
+              <Label>Horímetro base (referência do início deste ciclo)</Label>
+              <Input type="number" step={0.1} value={horimetroBase} onChange={(e) => setHorimetroBase(e.target.value)} />
               <p className="text-[11.5px] text-muted-foreground">
-                Horímetro atual da embarcação: <strong>{horimetroAtual.toFixed(1)}h</strong>. Deixe igual ao atual se
-                a contagem deste ciclo começa agora, ou coloque um valor menor (ex: 0) se as horas já usadas devem
-                contar para este ciclo.
+                Horímetro atual da embarcação: <strong>{horimetroAtual.toFixed(1)}h</strong>. "Horas usadas neste
+                ciclo" = horímetro atual − este valor. Pode ser <strong>negativo</strong> — útil se o aparelho de
+                horímetro foi trocado e a leitura atual não bate mais com o total real de uso (ex: se já foram
+                usadas 44h neste ciclo mas o horímetro global mostra 0h, coloque −44 aqui).
               </p>
             </div>
           </div>
