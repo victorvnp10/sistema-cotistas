@@ -51,3 +51,45 @@ export function useRenovarSeguro() {
     },
   });
 }
+
+export function useAtualizarSeguro() {
+  const queryClient = useQueryClient();
+  const { grupoAtual } = useAuth();
+  return useMutation({
+    mutationFn: async (payload: {
+      id: string;
+      apolice: string;
+      seguradora: string;
+      dataInicio: string;
+      valor: number;
+      dataVencimento: string;
+      observacao?: string;
+    }) => {
+      const { error } = await supabase
+        .from("seguros")
+        .update({
+          apolice: payload.apolice,
+          seguradora: payload.seguradora || null,
+          data_inicio: payload.dataInicio,
+          valor: payload.valor,
+          data_vencimento: payload.dataVencimento,
+          observacao: payload.observacao || null,
+        })
+        .eq("id", payload.id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["seguros", grupoAtual?.id] }),
+  });
+}
+
+export function useExcluirSeguro() {
+  const queryClient = useQueryClient();
+  const { grupoAtual } = useAuth();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("seguros").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["seguros", grupoAtual?.id] }),
+  });
+}
