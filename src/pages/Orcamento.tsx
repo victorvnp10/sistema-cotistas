@@ -78,24 +78,22 @@ export default function Orcamento() {
             <thead>
               <tr className="text-left text-[10.5px] font-bold uppercase text-muted-foreground">
                 <th className="pb-2">Cotista</th>
-                <th className="pb-2">{termoCota}s</th>
-                <th className="pb-2">Fixo</th>
-                <th className="pb-2">Variável</th>
-                <th className="pb-2">Reserva</th>
-                <th className="pb-2">Total mês</th>
-                <th className="pb-2">Próximo</th>
+                <th className="pb-2 text-right">Fixo</th>
+                <th className="pb-2 text-right">Variável</th>
+                <th className="pb-2 text-right">Reserva</th>
+                <th className="pb-2 text-right">Total mês</th>
+                <th className="pb-2 text-right">Próximo</th>
               </tr>
             </thead>
             <tbody>
               {mensalidadesTodos?.map((v) => (
                 <tr key={v.membro_id} className={v.membro_id === membroAtual?.id ? "bg-accent/60" : ""}>
                   <td className="py-2 font-medium">{v.nome}</td>
-                  <td className="py-2">{v.cotas}</td>
-                  <td className="py-2">{formatarMoeda(v.custo_fixo_mes)}</td>
-                  <td className="py-2">{formatarMoeda(v.custo_variavel_mes)}</td>
-                  <td className="py-2">{formatarMoeda(v.reserva_emergencia_mes)}</td>
-                  <td className="py-2 font-bold text-royal">{formatarMoeda(v.total_mes_atual)}</td>
-                  <td className="py-2">{formatarMoeda(v.total_proximo_mes)}</td>
+                  <td className="py-2 text-right">{formatarMoeda(v.custo_fixo_mes)}</td>
+                  <td className="py-2 text-right">{formatarMoeda(v.custo_variavel_mes)}</td>
+                  <td className="py-2 text-right">{formatarMoeda(v.reserva_emergencia_mes)}</td>
+                  <td className="py-2 text-right font-bold text-royal">{formatarMoeda(v.total_mes_atual)}</td>
+                  <td className="py-2 text-right">{formatarMoeda(v.total_proximo_mes)}</td>
                 </tr>
               ))}
             </tbody>
