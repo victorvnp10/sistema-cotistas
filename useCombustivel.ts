@@ -77,16 +77,11 @@ export function calcularRanking(
 export interface ProximoDia {
   data: string;
   descricao: string;
-  manhaLivre: boolean;
-  tardeLivre: boolean;
+  reservaManha: Reserva | null;
+  reservaTarde: Reserva | null;
 }
 
-/**
- * Próximos dias (até 60) que contam para a escala, com no máximo 10 resultados.
- * Só retorna dias que tenham pelo menos um período (manhã ou tarde) livre --
- * dias totalmente reservados não aparecem, já que o card é só pra divulgar
- * o que ainda está disponível.
- */
+/** Próximos dias (até 60) que contam para a escala, com no máximo 10 resultados. */
 export function calcularProximosDias(
   reservas: Reserva[],
   feriados: Feriado[],
@@ -98,24 +93,23 @@ export function calcularProximosDias(
 
   const resultado: ProximoDia[] = [];
 
-  for (let offset = 0; offset <= 90 && resultado.length < maxResultados; offset++) {
+  for (let offset = 0; offset <= 60 && resultado.length < maxResultados; offset++) {
     const d = new Date(hoje);
     d.setDate(hoje.getDate() + offset);
     const dataISO = formatarDataISO(d);
 
     if (!contaParaEscala(dataISO, feriadosSet)) continue;
 
-    const reservaManha = reservas.find(
-      (r) => r.data === dataISO && r.periodo === "M" && r.status !== "cancelado"
-    );
-    const reservaTarde = reservas.find(
-      (r) => r.data === dataISO && r.periodo === "T" && r.status !== "cancelado"
-    );
+    const reservaManha =
+      reservas.find((r) => r.data === dataISO && r.periodo === "M" && r.status !== "cancelado") ??
+      null;
+    const reservaTarde =
+      reservas.find((r) => r.data === dataISO && r.periodo === "T" && r.status !== "cancelado") ??
+      null;
 
-    const manhaLivre = !reservaManha;
-    const tardeLivre = !reservaTarde;
-
-    if (!manhaLivre && !tardeLivre) continue; // dia totalmente reservado, não mostra
+    // Dia sem nenhum turno livre não é útil pra esta lista — pula sem contar
+    // como um dos "maxResultados" (continua procurando o próximo dia com vaga).
+    if (reservaManha && reservaTarde) continue;
 
     let descricao = "";
     const dow = d.getDay();
@@ -124,7 +118,7 @@ export function calcularProximosDias(
     const feriado = feriados.find((f) => f.data === dataISO);
     if (feriado) descricao = feriado.descricao;
 
-    resultado.push({ data: dataISO, descricao, manhaLivre, tardeLivre });
+    resultado.push({ data: dataISO, descricao, reservaManha, reservaTarde });
   }
 
   return resultado;

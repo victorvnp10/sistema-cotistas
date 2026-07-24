@@ -8,6 +8,7 @@ import {
   MoreHorizontal,
   Wrench,
   ShieldCheck,
+  ShieldPlus,
   Info,
   BarChart3,
   Users,
@@ -21,7 +22,7 @@ import { Modal } from "@/components/ui/modal";
 import { BottomNavigation, type ItemNav } from "@/components/ui/bottom-navigation";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
-  const { grupoAtual, membroAtual, ehAdmin, podeGerenciarOrcamento, sair } = useAuth();
+  const { grupoAtual, membroAtual, ehAdmin, podeGerenciarOrcamento, ehMaster, sair } = useAuth();
   const navigate = useNavigate();
   const [maisAberto, setMaisAberto] = useState(false);
 
@@ -42,6 +43,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       : []),
     ...(ehAdmin ? [{ to: "/cotistas", label: "Cotistas", icon: <Users size={18} /> }] : []),
     ...(ehAdmin ? [{ to: "/feriados", label: "Feriados", icon: <PartyPopper size={18} /> }] : []),
+    ...(ehMaster ? [{ to: "/provisionar-grupo", label: "Provisionar novo grupo", icon: <ShieldPlus size={18} /> }] : []),
   ];
 
   return (

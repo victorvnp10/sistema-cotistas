@@ -118,36 +118,56 @@ export default function Informacoes() {
             {[...agrupado.entries()].map(([cat, lista]) => (
               <div key={cat}>
                 <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{LABEL_CATEGORIA[cat]}</p>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
                   {lista.map((info) => {
                     const driveId = extrairDriveFileId(info.valor);
                     const youtubeId = extrairYoutubeId(info.valor);
                     const isLink = ehUrl(info.valor);
-                    const Icone = driveId || youtubeId ? Eye : isLink ? ExternalLink : Copy;
+                    const ehVisualizavel = !!(driveId || youtubeId);
+                    const ehLink = ehVisualizavel || isLink;
+                    const Icone = ehVisualizavel ? Eye : isLink ? ExternalLink : Copy;
+                    // Para links/documentos não mostramos a URL bruta (fica feia e não cabe na caixa) —
+                    // só um rótulo de ação. Para os demais (contato, PIX, senha) mantemos o valor visível.
+                    const textoExibido = ehLink
+                      ? (ehVisualizavel ? "Toque para visualizar" : "Toque para abrir")
+                      : info.valor;
                     return (
-                      <button
+                      <div
                         key={info.id}
-                        onClick={() => aoClicarValor(info)}
-                        className="flex items-center gap-2 rounded-2xl border border-border/60 bg-white p-3 text-left transition-colors hover:bg-secondary/60 active:scale-[0.99]"
+                        className="flex min-w-0 items-center gap-2 rounded-2xl border border-border/60 bg-white p-3"
                       >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[10px] font-bold uppercase text-muted-foreground">{info.rotulo}</p>
-                          <p className="truncate text-[14px] font-semibold">{info.valor}</p>
-                          {info.observacao && <p className="truncate text-[11.5px] text-muted-foreground">{info.observacao}</p>}
-                        </div>
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-accent text-royal">
-                          <Icone size={15} />
-                        </span>
+                        <button
+                          onClick={() => aoClicarValor(info)}
+                          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[10px] font-bold uppercase text-muted-foreground">{info.rotulo}</p>
+                            <p className="truncate text-[14px] font-semibold">{textoExibido}</p>
+                            {info.observacao && <p className="truncate text-[11.5px] text-muted-foreground">{info.observacao}</p>}
+                          </div>
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-accent text-royal">
+                            <Icone size={15} />
+                          </span>
+                        </button>
+                        {ehLink && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); copiar(info.valor); }}
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-secondary"
+                            aria-label="Copiar link"
+                          >
+                            <Copy size={14} />
+                          </button>
+                        )}
                         {ehAdmin && (
-                          <span
-                            role="button"
+                          <button
                             onClick={(e) => { e.stopPropagation(); setExcluindo(info); }}
                             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            aria-label="Excluir informação"
                           >
                             <X size={14} />
-                          </span>
+                          </button>
                         )}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>

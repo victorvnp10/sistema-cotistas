@@ -148,14 +148,14 @@ export default function Dashboard() {
               <p className="font-bold">{formatarDataBR(d.data)}</p>
               <p className="mb-1.5 truncate text-muted-foreground">{d.descricao || "—"}</p>
               <div className="flex gap-1">
-                {d.manhaLivre && (
+                {!d.reservaManha && (
                   <span className="rounded-full bg-success-soft px-1.5 py-0.5 text-[10px] font-bold text-success">
-                    M livre
+                    Manhã livre
                   </span>
                 )}
-                {d.tardeLivre && (
+                {!d.reservaTarde && (
                   <span className="rounded-full bg-success-soft px-1.5 py-0.5 text-[10px] font-bold text-success">
-                    T livre
+                    Tarde livre
                   </span>
                 )}
               </div>

@@ -40,18 +40,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   async function carregarMembresias() {
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData.user?.id;
-    if (!userId) {
+    if (!session) {
       setMembresias([]);
       return;
     }
-
     const { data, error } = await supabase
       .from("grupo_membros")
       .select("*, grupo:grupos(*)")
       .eq("ativo", true)
-      .eq("user_id", userId);
+      .eq("user_id", session.user.id);
 
     if (error) {
       console.error("Erro ao carregar grupos do usuário:", error.message);

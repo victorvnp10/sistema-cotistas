@@ -1,6 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { MASTER_EMAIL } from "@/lib/constants";
 import Login from "@/pages/Login";
 import CriarGrupo from "@/pages/CriarGrupo";
 import AguardandoConvite from "@/pages/AguardandoConvite";
@@ -14,6 +13,7 @@ import Diario from "@/pages/Diario";
 import Seguro from "@/pages/Seguro";
 import Informacoes from "@/pages/Informacoes";
 import PainelGestor from "@/pages/PainelGestor";
+import ProvisionarGrupo from "@/pages/ProvisionarGrupo";
 import AppLayout from "@/components/AppLayout";
 
 function TelaCarregando() {
@@ -25,11 +25,9 @@ function TelaCarregando() {
 }
 
 export default function App() {
-  const { carregando, session, membresias, ehAdmin } = useAuth();
+  const { carregando, session, membresias, ehAdmin, ehMaster } = useAuth();
 
   if (carregando) return <TelaCarregando />;
-
-  const ehMaster = session?.user.email === MASTER_EMAIL;
 
   return (
     <Routes>
@@ -82,6 +80,7 @@ export default function App() {
                 <Route path="/painel-gestor" element={<PainelGestor />} />
                 {ehAdmin && <Route path="/cotistas" element={<Cotistas />} />}
                 {ehAdmin && <Route path="/feriados" element={<Feriados />} />}
+                {ehMaster && <Route path="/provisionar-grupo" element={<ProvisionarGrupo />} />}
               </Routes>
             </AppLayout>
           )
