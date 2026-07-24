@@ -17,7 +17,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
-import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/types/database.types";
@@ -203,9 +202,9 @@ export default function Seguro() {
                   {dias < 0 ? `Vencido há ${Math.abs(dias)} dia(s)` : `Faltam ${dias} dia(s) para o vencimento`}
                 </p>
                 <div className="mt-3 grid grid-cols-3 gap-2">
-                  <StatCard titulo="Início" valor={formatarDataBR(atual.data_inicio)} />
-                  <StatCard titulo="Vencimento" valor={formatarDataBR(atual.data_vencimento)} />
-                  <StatCard titulo="Valor" valor={formatarMoeda(atual.valor)} />
+                  <MiniStat titulo="Início" valor={formatarDataBR(atual.data_inicio)} />
+                  <MiniStat titulo="Vencimento" valor={formatarDataBR(atual.data_vencimento)} />
+                  <MiniStat titulo="Valor" valor={formatarMoeda(atual.valor)} />
                 </div>
                 {atual.observacao && <p className="mt-2 text-xs text-muted-foreground">{atual.observacao}</p>}
               </div>
@@ -332,6 +331,15 @@ export default function Seguro() {
           </div>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+function MiniStat({ titulo, valor }: { titulo: string; valor: string }) {
+  return (
+    <div className="min-w-0 rounded-2xl bg-white p-2.5 text-center shadow-softer">
+      <p className="truncate text-[9px] font-bold uppercase tracking-wide text-muted-foreground">{titulo}</p>
+      <p className="truncate text-[13px] font-extrabold leading-tight text-foreground">{valor}</p>
     </div>
   );
 }
