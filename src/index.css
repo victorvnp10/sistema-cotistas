@@ -75,3 +75,16 @@
   header, nav { display: none !important; }
   body { background: #fff; }
 }
+/* Corrige o Safari do iPhone renderizando o texto da data "vazando" para
+   fora da caixa estilizada do campo (peculiaridade do input nativo de
+   data no iOS quando a altura/padding são customizados). */
+@layer base {
+  input[type="date"],
+  input[type="month"] {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  input[type="date"]::-webkit-date-and-time-value {
+    text-align: left;
+  }
+}
