@@ -1,91 +1,49 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import Login from "@/pages/Login";
-import CriarGrupo from "@/pages/CriarGrupo";
-import AguardandoConvite from "@/pages/AguardandoConvite";
-import Dashboard from "@/pages/Dashboard";
-import Calendario from "@/pages/Calendario";
-import Cotistas from "@/pages/Cotistas";
-import Feriados from "@/pages/Feriados";
-import Orcamento from "@/pages/Orcamento";
-import Manutencao from "@/pages/Manutencao";
-import Diario from "@/pages/Diario";
-import Seguro from "@/pages/Seguro";
-import Informacoes from "@/pages/Informacoes";
-import PainelGestor from "@/pages/PainelGestor";
-import ProvisionarGrupo from "@/pages/ProvisionarGrupo";
-import AppLayout from "@/components/AppLayout";
+import type { Database } from "@/types/database.types";
 
-function TelaCarregando() {
-  return (
-    <div className="flex min-h-screen items-center justify-center text-muted-foreground">
-      Carregando...
-    </div>
-  );
+type Membro = Database["public"]["Tables"]["grupo_membros"]["Row"];
+type MembroInsert = Database["public"]["Tables"]["grupo_membros"]["Insert"];
+type MembroUpdate = Database["public"]["Tables"]["grupo_membros"]["Update"];
+
+export function useMembros() {
+  const { grupoAtual } = useAuth();
+  return useQuery({
+    queryKey: ["membros", grupoAtual?.id],
+    enabled: !!grupoAtual,
+    queryFn: async (): Promise<Membro[]> => {
+      const { data, error } = await supabase
+        .from("grupo_membros")
+        .select("*")
+        .eq("grupo_id", grupoAtual!.id)
+        .order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 }
 
-export default function App() {
-  const { carregando, session, membresias, ehAdmin, ehMaster } = useAuth();
+export function useSalvarMembro() {
+  const queryClient = useQueryClient();
+  const { grupoAtual } = useAuth();
 
-  if (carregando) return <TelaCarregando />;
-
-  return (
-    <Routes>
-      <Route path="/login" element={session ? <Navigate to="/" replace /> : <Login />} />
-      <Route
-        path="/criar-grupo"
-        element={
-          !session ? (
-            <Navigate to="/login" replace />
-          ) : membresias.length > 0 ? (
-            <Navigate to="/" replace />
-          ) : ehMaster ? (
-            <CriarGrupo />
-          ) : (
-            <Navigate to="/aguardando-convite" replace />
-          )
-        }
-      />
-      <Route
-        path="/aguardando-convite"
-        element={
-          !session ? (
-            <Navigate to="/login" replace />
-          ) : membresias.length > 0 ? (
-            <Navigate to="/" replace />
-          ) : ehMaster ? (
-            <Navigate to="/criar-grupo" replace />
-          ) : (
-            <AguardandoConvite />
-          )
-        }
-      />
-      <Route
-        path="/*"
-        element={
-          !session ? (
-            <Navigate to="/login" replace />
-          ) : membresias.length === 0 ? (
-            <Navigate to={ehMaster ? "/criar-grupo" : "/aguardando-convite"} replace />
-          ) : (
-            <AppLayout>
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/calendario" element={<Calendario />} />
-                <Route path="/orcamento" element={<Orcamento />} />
-                <Route path="/manutencao" element={<Manutencao />} />
-                <Route path="/diario" element={<Diario />} />
-                <Route path="/seguro" element={<Seguro />} />
-                <Route path="/informacoes" element={<Informacoes />} />
-                <Route path="/painel-gestor" element={<PainelGestor />} />
-                {ehAdmin && <Route path="/cotistas" element={<Cotistas />} />}
-                {ehAdmin && <Route path="/feriados" element={<Feriados />} />}
-                {ehMaster && <Route path="/provisionar-grupo" element={<ProvisionarGrupo />} />}
-              </Routes>
-            </AppLayout>
-          )
-        }
-      />
-    </Routes>
-  );
+  return useMutation({
+    mutationFn: async (payload: { id?: string } & Omit<MembroInsert, "grupo_id">) => {
+      if (payload.id) {
+        const { id, ...resto } = payload;
+        const update: MembroUpdate = resto;
+        const { error } = await supabase.from("grupo_membros").update(update).eq("id", id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("grupo_membros")
+          .insert({ ...payload, grupo_id: grupoAtual!.id });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["membros", grupoAtual?.id] });
+    },
+  });
 }

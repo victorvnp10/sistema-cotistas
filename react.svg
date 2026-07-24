@@ -1,43 +1,92 @@
-import * as React from "react";
-import { cn } from "@/lib/utils";
+import { Navigate, Route, Routes } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { MASTER_EMAIL } from "@/lib/constants";
+import Login from "@/pages/Login";
+import CriarGrupo from "@/pages/CriarGrupo";
+import AguardandoConvite from "@/pages/AguardandoConvite";
+import Dashboard from "@/pages/Dashboard";
+import Calendario from "@/pages/Calendario";
+import Cotistas from "@/pages/Cotistas";
+import Feriados from "@/pages/Feriados";
+import Orcamento from "@/pages/Orcamento";
+import Manutencao from "@/pages/Manutencao";
+import Diario from "@/pages/Diario";
+import Seguro from "@/pages/Seguro";
+import Informacoes from "@/pages/Informacoes";
+import PainelGestor from "@/pages/PainelGestor";
+import AppLayout from "@/components/AppLayout";
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  icon?: React.ReactNode;
+function TelaCarregando() {
+  return (
+    <div className="flex min-h-screen items-center justify-center text-muted-foreground">
+      Carregando...
+    </div>
+  );
 }
 
-const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, icon, ...props }, ref) => {
-    if (icon) {
-      return (
-        <div className="relative">
-          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-            {icon}
-          </span>
-          <input
-            type={type}
-            className={cn(
-              "flex h-12 w-full rounded-2xl border border-input bg-white pl-11 pr-4 text-[16px] shadow-none transition-all placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:border-royal focus-visible:ring-4 focus-visible:ring-royal/10 disabled:cursor-not-allowed disabled:opacity-50",
-              className
-            )}
-            ref={ref}
-            {...props}
-          />
-        </div>
-      );
-    }
-    return (
-      <input
-        type={type}
-        className={cn(
-          "flex h-12 w-full rounded-2xl border border-input bg-white px-4 text-[16px] shadow-none transition-all placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:border-royal focus-visible:ring-4 focus-visible:ring-royal/10 disabled:cursor-not-allowed disabled:opacity-50",
-          className
-        )}
-        ref={ref}
-        {...props}
-      />
-    );
-  }
-);
-Input.displayName = "Input";
+export default function App() {
+  const { carregando, session, membresias, ehAdmin } = useAuth();
 
-export { Input };
+  if (carregando) return <TelaCarregando />;
+
+  const ehMaster = session?.user.email === MASTER_EMAIL;
+
+  return (
+    <Routes>
+      <Route path="/login" element={session ? <Navigate to="/" replace /> : <Login />} />
+      <Route
+        path="/criar-grupo"
+        element={
+          !session ? (
+            <Navigate to="/login" replace />
+          ) : membresias.length > 0 ? (
+            <Navigate to="/" replace />
+          ) : ehMaster ? (
+            <CriarGrupo />
+          ) : (
+            <Navigate to="/aguardando-convite" replace />
+          )
+        }
+      />
+      <Route
+        path="/aguardando-convite"
+        element={
+          !session ? (
+            <Navigate to="/login" replace />
+          ) : membresias.length > 0 ? (
+            <Navigate to="/" replace />
+          ) : ehMaster ? (
+            <Navigate to="/criar-grupo" replace />
+          ) : (
+            <AguardandoConvite />
+          )
+        }
+      />
+      <Route
+        path="/*"
+        element={
+          !session ? (
+            <Navigate to="/login" replace />
+          ) : membresias.length === 0 ? (
+            <Navigate to={ehMaster ? "/criar-grupo" : "/aguardando-convite"} replace />
+          ) : (
+            <AppLayout>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/calendario" element={<Calendario />} />
+                <Route path="/orcamento" element={<Orcamento />} />
+                <Route path="/manutencao" element={<Manutencao />} />
+                <Route path="/diario" element={<Diario />} />
+                <Route path="/seguro" element={<Seguro />} />
+                <Route path="/informacoes" element={<Informacoes />} />
+                <Route path="/painel-gestor" element={<PainelGestor />} />
+                {ehAdmin && <Route path="/cotistas" element={<Cotistas />} />}
+                {ehAdmin && <Route path="/feriados" element={<Feriados />} />}
+              </Routes>
+            </AppLayout>
+          )
+        }
+      />
+    </Routes>
+  );
+}
