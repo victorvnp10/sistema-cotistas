@@ -98,8 +98,8 @@ export default function PainelGestor() {
                 <table className="w-full text-[12px]">
                   <thead>
                     <tr className="text-left text-muted-foreground">
-                      <th className="pb-1">Descrição</th><th className="pb-1">Data</th><th className="pb-1">Intervalo</th>
-                      <th className="pb-1">Base</th><th className="pb-1">Atual</th><th className="pb-1">Restante</th><th className="pb-1">Previsto</th>
+                      <th className="pb-1">Descrição</th><th className="pb-1">Data</th><th className="pb-1">Início do ciclo</th>
+                      <th className="pb-1">Intervalo</th><th className="pb-1">Usadas</th><th className="pb-1">Restante</th><th className="pb-1">Previsto</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -107,9 +107,9 @@ export default function PainelGestor() {
                       <tr key={i} className={m.horasRestantes < 0 ? "bg-destructive/5" : ""}>
                         <td className="py-1">{m.descricao}</td>
                         <td className="py-1">{m.proximaData ? formatarDataBR(m.proximaData) : "—"}</td>
+                        <td className="py-1">{formatarDataBR(m.dataInicioCiclo)}</td>
                         <td className="py-1">{m.intervaloHoras}h</td>
-                        <td className="py-1">{m.horimetroBase.toFixed(1)}h</td>
-                        <td className="py-1">{m.horimetroAtual.toFixed(1)}h</td>
+                        <td className="py-1">{m.horasUsadas.toFixed(1)}h</td>
                         <td className="py-1">{m.horasRestantes < 0 ? `venc. ${Math.abs(m.horasRestantes).toFixed(1)}h` : `${m.horasRestantes.toFixed(1)}h`}</td>
                         <td className="py-1">{formatarMoeda(m.custoPrevisto)}</td>
                       </tr>
@@ -145,11 +145,23 @@ export default function PainelGestor() {
                 <div>
                   <p className="font-bold">{painel.proximaManutencao.descricao}</p>
                   <p className="text-[12.5px] text-muted-foreground">
-                    {painel.proximaManutencao.tipoGatilho === "horas"
-                      ? ((painel.proximaManutencao.horasRestantes ?? 0) < 0
-                          ? `vencida há ${Math.abs(painel.proximaManutencao.horasRestantes ?? 0).toFixed(1)}h`
-                          : `${(painel.proximaManutencao.horasRestantes ?? 0).toFixed(1)}h restantes`)
-                      : (painel.proximaManutencao.proximaData ? formatarDataBR(painel.proximaManutencao.proximaData) : "—")}
+                    {painel.proximaManutencao.proximaData && (
+                      <span>
+                        {formatarDataBR(painel.proximaManutencao.proximaData)}
+                        {painel.proximaManutencao.diasParaVencer !== null && (
+                          painel.proximaManutencao.diasParaVencer < 0
+                            ? ` (vencida há ${Math.abs(painel.proximaManutencao.diasParaVencer)}d)`
+                            : ` (${painel.proximaManutencao.diasParaVencer}d)`
+                        )}
+                      </span>
+                    )}
+                    {painel.proximaManutencao.proximaData && painel.proximaManutencao.horasRestantes !== null && " · "}
+                    {painel.proximaManutencao.horasRestantes !== null && (
+                      (painel.proximaManutencao.horasRestantes < 0
+                        ? `vencida há ${Math.abs(painel.proximaManutencao.horasRestantes).toFixed(1)}h`
+                        : `${painel.proximaManutencao.horasRestantes.toFixed(1)}h restantes`)
+                    )}
+                    {!painel.proximaManutencao.proximaData && painel.proximaManutencao.horasRestantes === null && "—"}
                   </p>
                   {!!painel.proximaManutencao.custoPrevisto && <p className="text-[13.5px]">{formatarMoeda(painel.proximaManutencao.custoPrevisto)}</p>}
                 </div>
