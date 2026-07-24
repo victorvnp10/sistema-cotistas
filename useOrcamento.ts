@@ -1,26 +1,28 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import type { PrioridadeDiario } from "@/types/database.types";
+import type { Database } from "@/types/database.types";
 
-export function useDiario() {
+type ManutencaoInsert = Database["public"]["Tables"]["manutencoes"]["Insert"];
+
+export function useManutencoes() {
   const { grupoAtual } = useAuth();
   return useQuery({
-    queryKey: ["diario", grupoAtual?.id],
+    queryKey: ["manutencoes", grupoAtual?.id],
     enabled: !!grupoAtual,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("diario_bordo")
+        .from("manutencoes")
         .select("*")
         .eq("grupo_id", grupoAtual!.id)
-        .order("criado_em", { ascending: false });
+        .order("criado_em");
       if (error) throw error;
       return data ?? [];
     },
   });
 }
 
-export function useUltimoHorimetro() {
+export function useUltimoHorimetroManutencao() {
   const { grupoAtual } = useAuth();
   return useQuery({
     queryKey: ["ultimo-horimetro", grupoAtual?.id],
@@ -35,99 +37,139 @@ export function useUltimoHorimetro() {
   });
 }
 
-export function useCriarRegistroDiario() {
+export function useSalvarManutencao() {
   const queryClient = useQueryClient();
   const { grupoAtual } = useAuth();
   return useMutation({
-    mutationFn: async (payload: {
-      titulo: string;
-      relato: string;
-      prioridade?: PrioridadeDiario;
-      horimetroInicio?: number | null;
-      horimetroFim?: number;
-      observacoes?: string;
-      usoRotina?: boolean;
-      dataUso?: string | null;
-    }) => {
-      const { error } = await supabase.rpc("criar_registro_diario", {
-        p_grupo_id: grupoAtual!.id,
-        p_titulo: payload.titulo,
-        p_relato: payload.relato,
-        p_prioridade: payload.prioridade ?? "normal",
-        p_horimetro_inicio: payload.horimetroInicio ?? null,
-        p_horimetro_fim: payload.horimetroFim ?? 0,
-        p_observacoes: payload.observacoes ?? null,
-        p_uso_rotina: payload.usoRotina ?? false,
-        p_data_uso: payload.dataUso ?? null,
-      });
-      if (error) throw error;
+    mutationFn: async (
+      payload: { id?: string } & Omit<ManutencaoInsert, "grupo_id" | "feito">
+    ) => {
+      if (payload.id) {
+        const { id, ...resto } = payload;
+        const { error } = await supabase.from("manutencoes").update(resto).eq("id", id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("manutencoes")
+          .insert({ ...payload, grupo_id: grupoAtual!.id });
+        if (error) throw error;
+      }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["diario", grupoAtual?.id] });
-      queryClient.invalidateQueries({ queryKey: ["ultimo-horimetro", grupoAtual?.id] });
-      queryClient.invalidateQueries({ queryKey: ["relatorios-pendentes"] });
-      queryClient.invalidateQueries({ queryKey: ["mensalidade-membro"] });
-      queryClient.invalidateQueries({ queryKey: ["mensalidades-todos", grupoAtual?.id] });
-    },
+    onSuccess: () => invalidar(queryClient, grupoAtual?.id),
   });
 }
 
-export function useResolverDiario() {
-  const queryClient = useQueryClient();
-  const { grupoAtual, membroAtual } = useAuth();
-  return useMutation({
-    mutationFn: async (payload: { id: string; resolvido: boolean }) => {
-      const { error } = await supabase
-        .from("diario_bordo")
-        .update({
-          resolvido: payload.resolvido,
-          data_resolucao: payload.resolvido ? new Date().toISOString().slice(0, 10) : null,
-          resolvido_por: payload.resolvido ? membroAtual?.id : null,
-        })
-        .eq("id", payload.id);
-      if (error) throw error;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["diario", grupoAtual?.id] }),
-  });
-}
-
-export function useExcluirRegistroDiario() {
+export function useExcluirManutencao() {
   const queryClient = useQueryClient();
   const { grupoAtual } = useAuth();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("diario_bordo").delete().eq("id", id);
+      const { error } = await supabase.from("manutencoes").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["diario", grupoAtual?.id] }),
+    onSuccess: () => invalidar(queryClient, grupoAtual?.id),
   });
 }
 
-export function useRelatoriosPendentes(membroId: string | undefined) {
-  return useQuery({
-    queryKey: ["relatorios-pendentes", membroId],
-    enabled: !!membroId,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("relatorios_pendentes_membro", {
-        p_membro_id: membroId!,
+export function useConcluirManutencaoData() {
+  const queryClient = useQueryClient();
+  const { grupoAtual } = useAuth();
+  return useMutation({
+    mutationFn: async (payload: { id: string; reagendarDias?: number; proximaData?: string }) => {
+      if (payload.reagendarDias && payload.proximaData) {
+        const { error } = await supabase
+          .from("manutencoes")
+          .update({ feito: false, proxima_data: payload.proximaData, data_execucao: new Date().toISOString().slice(0, 10) })
+          .eq("id", payload.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("manutencoes")
+          .update({ feito: true, data_execucao: new Date().toISOString().slice(0, 10) })
+          .eq("id", payload.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => invalidar(queryClient, grupoAtual?.id),
+  });
+}
+
+export function useConcluirManutencaoHoras() {
+  const queryClient = useQueryClient();
+  const { grupoAtual } = useAuth();
+  return useMutation({
+    mutationFn: async (payload: { manutencaoId: string; custoReal: number }) => {
+      const { error } = await supabase.rpc("concluir_manutencao_horas", {
+        p_manutencao_id: payload.manutencaoId,
+        p_custo_real: payload.custoReal,
       });
       if (error) throw error;
-      return data ?? [];
+    },
+    onSuccess: () => {
+      invalidar(queryClient, grupoAtual?.id);
+      queryClient.invalidateQueries({ queryKey: ["rateio-manutencao", grupoAtual?.id] });
+      queryClient.invalidateQueries({ queryKey: ["saldo-atual", grupoAtual?.id] });
+      queryClient.invalidateQueries({ queryKey: ["lancamentos", grupoAtual?.id] });
     },
   });
 }
 
-export function useRelatoriosPendentesTodos() {
+export function useProjecaoManutencaoHoras() {
   const { grupoAtual } = useAuth();
   return useQuery({
-    queryKey: ["relatorios-pendentes-todos", grupoAtual?.id],
+    queryKey: ["projecao-manutencao-horas", grupoAtual?.id],
     enabled: !!grupoAtual,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("relatorios_pendentes_todos", {
+      const { data, error } = await supabase.rpc("projecao_manutencao_horas", {
         p_grupo_id: grupoAtual!.id,
       });
       if (error) throw error;
       return data ?? [];
     },
   });
+}
+
+export function useRateioManutencao() {
+  const { grupoAtual } = useAuth();
+  const manutencoes = useManutencoes();
+  return useQuery({
+    queryKey: ["rateio-manutencao", grupoAtual?.id],
+    enabled: !!grupoAtual && !!manutencoes.data,
+    queryFn: async () => {
+      const ids = (manutencoes.data ?? []).map((m) => m.id);
+      if (!ids.length) return [];
+      const { data, error } = await supabase
+        .from("rateio_manutencao")
+        .select("*")
+        .in("manutencao_id", ids);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function useConfirmarRateioManutencao() {
+  const queryClient = useQueryClient();
+  const { grupoAtual } = useAuth();
+  return useMutation({
+    mutationFn: async (payload: { id: string; confirmado: boolean }) => {
+      const { error } = await supabase
+        .from("rateio_manutencao")
+        .update({
+          confirmado: payload.confirmado,
+          data_confirmacao: payload.confirmado ? new Date().toISOString().slice(0, 10) : null,
+        })
+        .eq("id", payload.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rateio-manutencao", grupoAtual?.id] });
+      queryClient.invalidateQueries({ queryKey: ["mensalidade-membro"] });
+    },
+  });
+}
+
+function invalidar(queryClient: ReturnType<typeof useQueryClient>, grupoId: string | undefined) {
+  queryClient.invalidateQueries({ queryKey: ["manutencoes", grupoId] });
+  queryClient.invalidateQueries({ queryKey: ["projecao-manutencao-horas", grupoId] });
 }

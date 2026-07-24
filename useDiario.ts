@@ -1,128 +1,57 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
-import type { Session } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
-import type { Database, Papel } from "@/types/database.types";
-import { MASTER_EMAIL } from "@/lib/constants";
+import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
-type Grupo = Database["public"]["Tables"]["grupos"]["Row"];
-type Membro = Database["public"]["Tables"]["grupo_membros"]["Row"];
-
-interface AuthContextValue {
-  carregando: boolean;
-  session: Session | null;
-  /** Grupo(s) a que o usuário logado pertence, com seu papel/cotas em cada um */
-  membresias: (Membro & { grupo: Grupo })[];
-  /** Grupo atualmente selecionado (normalmente o único, na maioria dos casos de uso) */
-  grupoAtual: Grupo | null;
-  membroAtual: Membro | null;
-  selecionarGrupo: (grupoId: string) => void;
-  podeGerenciarOrcamento: boolean;
-  ehAdmin: boolean;
-  ehMaster: boolean;
-  recarregarMembresias: () => Promise<void>;
-  sair: () => Promise<void>;
+interface ToastMsg {
+  id: number;
+  texto: string;
+  tipo: "ok" | "erro";
 }
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+interface ToastContextValue {
+  sucesso: (texto: string) => void;
+  erro: (texto: string) => void;
+}
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [carregando, setCarregando] = useState(true);
-  const [session, setSession] = useState<Session | null>(null);
-  const [membresias, setMembresias] = useState<(Membro & { grupo: Grupo })[]>([]);
-  const [grupoIdSelecionado, setGrupoIdSelecionado] = useState<string | null>(
-    () => localStorage.getItem("grupoIdSelecionado")
-  );
+const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 
-  async function carregarMembresias() {
-    const { data, error } = await supabase
-      .from("grupo_membros")
-      .select("*, grupo:grupos(*)")
-      .eq("ativo", true);
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const [mensagens, setMensagens] = useState<ToastMsg[]>([]);
 
-    if (error) {
-      console.error("Erro ao carregar grupos do usuário:", error.message);
-      setMembresias([]);
-      return;
-    }
-    setMembresias((data ?? []) as unknown as (Membro & { grupo: Grupo })[]);
-  }
-
-  useEffect(() => {
-    let ativo = true;
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (!ativo) return;
-      setSession(data.session);
-      setCarregando(false);
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, novaSession) => {
-      setSession(novaSession);
-    });
-
-    return () => {
-      ativo = false;
-      listener.subscription.unsubscribe();
-    };
+  const adicionar = useCallback((texto: string, tipo: "ok" | "erro") => {
+    const id = Date.now() + Math.random();
+    setMensagens((prev) => [...prev, { id, texto, tipo }]);
+    setTimeout(() => {
+      setMensagens((prev) => prev.filter((m) => m.id !== id));
+    }, 3200);
   }, []);
 
-  useEffect(() => {
-    if (session) {
-      carregarMembresias();
-    } else {
-      setMembresias([]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]);
-
-  const membroAtual =
-    membresias.find((m) => m.grupo_id === grupoIdSelecionado) ??
-    membresias[0] ??
-    null;
-  const grupoAtual = membroAtual?.grupo ?? null;
-
-  function selecionarGrupo(grupoId: string) {
-    localStorage.setItem("grupoIdSelecionado", grupoId);
-    setGrupoIdSelecionado(grupoId);
-  }
-
-  async function sair() {
-    await supabase.auth.signOut();
-    localStorage.removeItem("grupoIdSelecionado");
-  }
-
-  const ehAdmin = membroAtual?.role === "admin";
-  const ehMaster = session?.user.email === MASTER_EMAIL;
-  const podeGerenciarOrcamento: boolean =
-    membroAtual?.role === "admin" || membroAtual?.role === "gestor";
-
-  const value: AuthContextValue = {
-    carregando,
-    session,
-    membresias,
-    grupoAtual,
-    membroAtual,
-    selecionarGrupo,
-    podeGerenciarOrcamento,
-    ehAdmin,
-    ehMaster,
-    recarregarMembresias: carregarMembresias,
-    sair,
+  const value: ToastContextValue = {
+    sucesso: (texto) => adicionar(texto, "ok"),
+    erro: (texto) => adicionar(texto, "erro"),
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <ToastContext.Provider value={value}>
+      {children}
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+        {mensagens.map((m) => (
+          <div
+            key={m.id}
+            className={cn(
+              "rounded-md px-4 py-2.5 text-sm font-semibold text-white shadow-lg animate-in fade-in slide-in-from-bottom-2",
+              m.tipo === "ok" ? "bg-success" : "bg-destructive"
+            )}
+          >
+            {m.texto}
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
 }
 
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth precisa estar dentro de <AuthProvider>");
+export function useToast() {
+  const ctx = useContext(ToastContext);
+  if (!ctx) throw new Error("useToast precisa estar dentro de <ToastProvider>");
   return ctx;
 }
-
-export type { Papel };

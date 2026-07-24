@@ -1,160 +1,128 @@
-import { useState } from "react";
-import { UserPlus } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Anchor } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/contexts/ToastContext";
-import { useMembros, useSalvarMembro } from "@/lib/queries/useMembros";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Modal } from "@/components/ui/modal";
-import { Badge } from "@/components/ui/badge";
-import { Avatar } from "@/components/ui/avatar";
-import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
-import type { Database, Papel } from "@/types/database.types";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
-type Membro = Database["public"]["Tables"]["grupo_membros"]["Row"];
+/**
+ * Tela de PROVISIONAMENTO -- só o usuário master chega aqui (ver App.tsx).
+ * Ele cria o grupo e já indica quem vai ser o Admin (o novo gestor/cliente),
+ * que recebe um convite por e-mail -- o mesmo mecanismo usado para
+ * convidar cotistas. O master não precisa ser admin do grupo que cria.
+ */
+export default function CriarGrupo() {
+  const navigate = useNavigate();
+  const { session, recarregarMembresias, selecionarGrupo } = useAuth();
 
-export default function Cotistas() {
-  const { ehAdmin, grupoAtual } = useAuth();
-  const { data: membros, isLoading } = useMembros();
-  const [modalAberto, setModalAberto] = useState(false);
-  const [editando, setEditando] = useState<Membro | null>(null);
+  const [nome, setNome] = useState("");
+  const [nomeRecurso, setNomeRecurso] = useState("Embarcação");
+  const [diaVirada, setDiaVirada] = useState(4);
+  const [adminNome, setAdminNome] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
-  return (
-    <div className="flex flex-col gap-4 pb-6">
-      <Card>
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-[15px] font-bold">Cotistas</h2>
-            <p className="text-[12.5px] text-muted-foreground">
-              Rateio proporcional ao número de {grupoAtual?.termo_cota}s.
-            </p>
-          </div>
-          {ehAdmin && (
-            <Button size="sm" onClick={() => { setEditando(null); setModalAberto(true); }}>
-              <UserPlus size={16} /> Convidar
-            </Button>
-          )}
-        </div>
+  async function aoEnviar(e: FormEvent) {
+    e.preventDefault();
+    if (!session) return;
+    setErro(null);
+    setCarregando(true);
 
-        {isLoading ? (
-          <LoadingSkeleton />
-        ) : (
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-            {membros?.map((m) => (
-              <div key={m.id} className="flex items-center gap-3 rounded-2xl border border-border/60 bg-white p-3.5 shadow-softer">
-                <Avatar nome={m.nome} destaque={m.role === "admin"} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[14px] font-bold">{m.nome}</p>
-                  <p className="truncate text-[12px] text-muted-foreground">{m.email}</p>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1.5">
-                  <Badge variant="neutral">{m.cotas} {grupoAtual?.termo_cota}{m.cotas !== 1 ? "s" : ""}</Badge>
-                  <div className="flex gap-1">
-                    {m.role !== "cotista" && <Badge variant="info">{m.role}</Badge>}
-                    <Badge variant={m.ativo ? "success" : "error"}>{m.ativo ? "Ativo" : "Inativo"}</Badge>
-                  </div>
-                  {ehAdmin && (
-                    <button
-                      className="text-[11.5px] font-bold text-royal hover:underline"
-                      onClick={() => { setEditando(m); setModalAberto(true); }}
-                    >
-                      Editar
-                    </button>
-                  )}
-                  {!m.user_id && <span className="text-[10px] italic text-muted-foreground">convite pendente</span>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+    const { data: grupo, error: erroGrupo } = await supabase.rpc("criar_grupo", {
+      p_nome: nome,
+      p_nome_recurso: nomeRecurso,
+      p_dia_virada: diaVirada,
+      p_admin_nome: adminNome,
+      p_admin_email: adminEmail,
+    });
 
-      <ModalCotista aberto={modalAberto} aoFechar={() => setModalAberto(false)} membro={editando} />
-    </div>
-  );
-}
-
-function ModalCotista({ aberto, aoFechar, membro }: { aberto: boolean; aoFechar: () => void; membro: Membro | null }) {
-  const { grupoAtual } = useAuth();
-  const toast = useToast();
-  const salvar = useSalvarMembro();
-
-  const [nome, setNome] = useState(membro?.nome ?? "");
-  const [email, setEmail] = useState(membro?.email ?? "");
-  const [telefone, setTelefone] = useState(membro?.telefone ?? "");
-  const [role, setRole] = useState<Papel>(membro?.role ?? "cotista");
-  const [cotas, setCotas] = useState(membro?.cotas ?? 1);
-  const [ativo, setAtivo] = useState(membro?.ativo ?? true);
-
-  const chaveForm = membro?.id ?? "novo";
-  const [ultimaChave, setUltimaChave] = useState(chaveForm);
-  if (chaveForm !== ultimaChave) {
-    setUltimaChave(chaveForm);
-    setNome(membro?.nome ?? "");
-    setEmail(membro?.email ?? "");
-    setTelefone(membro?.telefone ?? "");
-    setRole(membro?.role ?? "cotista");
-    setCotas(membro?.cotas ?? 1);
-    setAtivo(membro?.ativo ?? true);
-  }
-
-  async function aoSalvar() {
-    if (!nome || !email) {
-      toast.erro("Preencha nome e e-mail.");
+    if (erroGrupo || !grupo) {
+      setErro("Não foi possível criar o grupo: " + erroGrupo?.message);
+      setCarregando(false);
       return;
     }
-    try {
-      await salvar.mutateAsync({ id: membro?.id, nome, email, telefone: telefone || null, role, cotas, ativo });
-      toast.sucesso(membro ? "Cotista atualizado!" : "Convite criado! Peça para a pessoa se cadastrar com este e-mail.");
-      aoFechar();
-    } catch (e) {
-      toast.erro(e instanceof Error ? e.message : "Erro ao salvar.");
-    }
+
+    await recarregarMembresias();
+    selecionarGrupo(grupo.id);
+    setCarregando(false);
+    navigate("/", { replace: true });
   }
 
   return (
-    <Modal aberto={aberto} aoFechar={aoFechar} titulo={membro ? "Editar cotista" : "Convidar cotista"}>
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1.5">
-          <Label>Nome</Label>
-          <Input value={nome} onChange={(e) => setNome(e.target.value)} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>E-mail</Label>
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!!membro} />
-          {!membro && <p className="text-[12px] text-muted-foreground">A pessoa deve se cadastrar com exatamente este e-mail.</p>}
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Telefone</Label>
-          <Input value={telefone ?? ""} onChange={(e) => setTelefone(e.target.value)} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label>Função</Label>
-            <select className="h-12 rounded-2xl border border-input bg-white px-3 text-[16px]" value={role} onChange={(e) => setRole(e.target.value as Papel)}>
-              <option value="cotista">Cotista</option>
-              <option value="gestor">Gestor</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>{grupoAtual?.termo_cota}s</Label>
-            <Input type="number" min={0.5} step={0.5} value={cotas} onChange={(e) => setCotas(Number(e.target.value))} />
-          </div>
-        </div>
-        {membro && (
-          <label className="flex items-center gap-2 text-[13.5px] font-medium">
-            <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} className="h-4 w-4 accent-royal" />
-            Ativo
-          </label>
-        )}
-        <div className="mt-2 flex justify-end gap-2">
-          <Button variant="ghost" onClick={aoFechar}>Cancelar</Button>
-          <Button onClick={aoSalvar} disabled={salvar.isPending}>{salvar.isPending ? "Salvando..." : "Salvar"}</Button>
-        </div>
-      </div>
-    </Modal>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-petrol via-ocean to-royal p-5">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="w-full max-w-md"
+      >
+        <Card className="shadow-floating">
+          <CardHeader className="items-center text-center">
+            <div className="mb-1 flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-royal to-ocean text-white shadow-soft">
+              <Anchor size={26} />
+            </div>
+            <CardTitle className="text-[20px]">Provisionar novo grupo</CardTitle>
+            <CardDescription>
+              Você é o usuário master. Crie o grupo e indique quem será o
+              administrador (o gestor responsável por cadastrar os cotistas) —
+              ele recebe um convite pelo e-mail informado.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={aoEnviar} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label>Nome do grupo</Label>
+                <Input required value={nome} onChange={(e) => setNome(e.target.value)} placeholder='Ex: "Amigos - Jolly Roger"' />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Como chamam o que é compartilhado?</Label>
+                <Input required value={nomeRecurso} onChange={(e) => setNomeRecurso(e.target.value)} placeholder='Ex: "Embarcação", "Cabana"' />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Dia de virada do mês (cobrança)</Label>
+                <Input type="number" min={1} max={28} required value={diaVirada} onChange={(e) => setDiaVirada(Number(e.target.value))} />
+              </div>
+              <div className="border-t border-border/60 pt-3">
+                <p className="mb-3 text-[12.5px] font-bold uppercase tracking-wide text-muted-foreground">
+                  Administrador deste grupo
+                </p>
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Nome do administrador</Label>
+                    <Input required value={adminNome} onChange={(e) => setAdminNome(e.target.value)} placeholder="Nome do gestor/cliente" />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>E-mail do administrador</Label>
+                    <Input
+                      type="email"
+                      required
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
+                      placeholder="email@dogestor.com"
+                    />
+                    <p className="text-[12px] text-muted-foreground">
+                      Essa pessoa deve se cadastrar no app usando exatamente este e-mail.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {erro && (
+                <p className="rounded-xl bg-destructive/10 px-3 py-2 text-[13px] font-medium text-destructive">{erro}</p>
+              )}
+
+              <Button type="submit" size="lg" className="w-full" disabled={carregando}>
+                {carregando ? "Criando..." : "Criar grupo"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </div>
   );
 }

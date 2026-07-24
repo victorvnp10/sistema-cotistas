@@ -1,58 +1,59 @@
-import { type ReactNode } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { X } from "lucide-react";
+import * as React from "react";
+import { motion, type HTMLMotionProps } from "framer-motion";
+import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-interface ModalProps {
-  aberto: boolean;
-  aoFechar: () => void;
-  titulo: string;
-  children: ReactNode;
-  className?: string;
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-[15px] font-semibold transition-colors disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+  {
+    variants: {
+      variant: {
+        primary: "bg-royal text-white shadow-soft hover:bg-royal/90",
+        secondary: "bg-white text-foreground border border-border shadow-softer hover:bg-secondary",
+        ghost: "text-foreground/80 hover:bg-secondary",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        success: "bg-success text-success-foreground hover:bg-success/90",
+        icon: "bg-secondary text-foreground hover:bg-accent rounded-full",
+        fab: "bg-royal text-white shadow-floating rounded-full",
+        outline: "bg-transparent border border-border text-foreground hover:bg-secondary",
+      },
+      size: {
+        default: "h-12 px-5",
+        sm: "h-9 px-4 text-sm rounded-xl",
+        lg: "h-14 px-7 text-base",
+        icon: "h-11 w-11",
+        fab: "h-14 w-14",
+      },
+    },
+    defaultVariants: {
+      variant: "primary",
+      size: "default",
+    },
+  }
+);
+
+export interface ButtonProps
+  extends Omit<HTMLMotionProps<"button">, "children">,
+    VariantProps<typeof buttonVariants> {
+  children?: React.ReactNode;
 }
 
-/**
- * Bottom Sheet: no mobile ocupa a parte de baixo da tela (padrão de apps
- * modernos); em telas largas fica centralizado como um cartão flutuante.
- */
-export function Modal({ aberto, aoFechar, titulo, children, className }: ModalProps) {
-  return (
-    <AnimatePresence>
-      {aberto && (
-        <motion.div
-          className="fixed inset-0 z-40 flex items-end justify-center sm:items-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          onClick={aoFechar}
-        >
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-          <motion.div
-            className={cn(
-              "relative z-10 max-h-[88vh] w-full overflow-y-auto rounded-t-3xl bg-white p-6 pb-8 shadow-floating sm:mx-auto sm:mb-auto sm:mt-16 sm:max-w-md sm:rounded-3xl",
-              className
-            )}
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 28, stiffness: 320 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-border sm:hidden" />
-            <div className="mb-5 flex items-center justify-between">
-              <h3 className="text-lg font-bold tracking-tight">{titulo}</h3>
-              <button
-                onClick={aoFechar}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:bg-accent"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            {children}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, children, ...props }, ref) => {
+    return (
+      <motion.button
+        whileTap={{ scale: 0.96 }}
+        whileHover={{ scale: 1.015 }}
+        transition={{ duration: 0.15, ease: "easeOut" }}
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        {...props}
+      >
+        {children}
+      </motion.button>
+    );
+  }
+);
+Button.displayName = "Button";
+
+export { Button, buttonVariants };

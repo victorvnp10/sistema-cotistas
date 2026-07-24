@@ -1,36 +1,27 @@
 import { type ReactNode } from "react";
-import { ChevronLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Inbox } from "lucide-react";
 
-export function Header({
+export function EmptyState({
+  icon,
   titulo,
-  voltar,
+  descricao,
   acao,
-  avatar,
 }: {
+  icon?: ReactNode;
   titulo: string;
-  voltar?: boolean;
+  descricao?: string;
   acao?: ReactNode;
-  avatar?: ReactNode;
 }) {
-  const navigate = useNavigate();
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center justify-between bg-background/80 px-5 backdrop-blur-md">
-      <div className="flex min-w-0 items-center gap-2">
-        {voltar && (
-          <button
-            onClick={() => navigate(-1)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-softer"
-          >
-            <ChevronLeft size={18} />
-          </button>
-        )}
-        <h1 className="truncate text-[19px] font-extrabold tracking-tight text-foreground">{titulo}</h1>
+    <div className="flex flex-col items-center gap-3 rounded-2xl bg-secondary/50 px-6 py-10 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-muted-foreground/60 shadow-softer">
+        {icon ?? <Inbox size={22} />}
       </div>
-      <div className="flex shrink-0 items-center gap-2">
-        {acao}
-        {avatar}
+      <div>
+        <p className="text-[14.5px] font-semibold text-foreground">{titulo}</p>
+        {descricao && <p className="mt-0.5 text-[13px] text-muted-foreground">{descricao}</p>}
       </div>
-    </header>
+      {acao}
+    </div>
   );
 }

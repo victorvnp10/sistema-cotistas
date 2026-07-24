@@ -1,18 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Database } from "@/types/database.types";
 
-type Periodo = Database["public"]["Tables"]["reservas"]["Row"]["periodo"];
-
-export function useReservas() {
+export function useFeriados() {
   const { grupoAtual } = useAuth();
   return useQuery({
-    queryKey: ["reservas", grupoAtual?.id],
+    queryKey: ["feriados", grupoAtual?.id],
     enabled: !!grupoAtual,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("reservas")
+        .from("feriados")
         .select("*")
         .eq("grupo_id", grupoAtual!.id)
         .order("data");
@@ -22,42 +19,28 @@ export function useReservas() {
   });
 }
 
-export function useCriarReserva() {
+export function useSalvarFeriado() {
   const queryClient = useQueryClient();
   const { grupoAtual } = useAuth();
-
   return useMutation({
-    mutationFn: async (payload: { membroId: string; data: string; periodo: Periodo }) => {
-      const { error } = await supabase.from("reservas").insert({
-        grupo_id: grupoAtual!.id,
-        membro_id: payload.membroId,
-        data: payload.data,
-        periodo: payload.periodo,
-      });
-      if (error) {
-        // Violação do índice único de turno = alguém reservou primeiro
-        if (error.code === "23505") {
-          throw new Error("Esse turno acabou de ser reservado por outra pessoa.");
-        }
-        throw error;
-      }
+    mutationFn: async (payload: { data: string; descricao: string }) => {
+      const { error } = await supabase
+        .from("feriados")
+        .insert({ ...payload, grupo_id: grupoAtual!.id });
+      if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["reservas", grupoAtual?.id] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["feriados", grupoAtual?.id] }),
   });
 }
 
-export function useCancelarReserva() {
+export function useExcluirFeriado() {
   const queryClient = useQueryClient();
   const { grupoAtual } = useAuth();
-
   return useMutation({
-    mutationFn: async (reservaId: string) => {
-      const { error } = await supabase
-        .from("reservas")
-        .update({ status: "cancelado" })
-        .eq("id", reservaId);
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("feriados").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["reservas", grupoAtual?.id] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["feriados", grupoAtual?.id] }),
   });
 }

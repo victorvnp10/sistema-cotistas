@@ -1,54 +1,43 @@
 import * as React from "react";
-import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-const cardVariants = cva("rounded-3xl bg-card text-card-foreground transition-shadow", {
-  variants: {
-    variant: {
-      default: "shadow-soft border border-border/60 p-6",
-      destaque: "shadow-floating bg-gradient-to-br from-royal to-ocean text-white p-6 border-0",
-      compacto: "shadow-softer border border-border/60 p-4",
-      flat: "bg-secondary/70 p-5 border-0 shadow-none",
-    },
-  },
-  defaultVariants: { variant: "default" },
-});
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  icon?: React.ReactNode;
+}
 
-export interface CardProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof cardVariants> {}
-
-const Card = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ className, variant, ...props }, ref) => (
-    <div ref={ref} className={cn(cardVariants({ variant, className }))} {...props} />
-  )
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type, icon, ...props }, ref) => {
+    if (icon) {
+      return (
+        <div className="relative">
+          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+            {icon}
+          </span>
+          <input
+            type={type}
+            className={cn(
+              "flex h-12 w-full rounded-2xl border border-input bg-white pl-11 pr-4 text-[16px] shadow-none transition-all placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:border-royal focus-visible:ring-4 focus-visible:ring-royal/10 disabled:cursor-not-allowed disabled:opacity-50",
+              className
+            )}
+            ref={ref}
+            {...props}
+          />
+        </div>
+      );
+    }
+    return (
+      <input
+        type={type}
+        className={cn(
+          "flex h-12 w-full rounded-2xl border border-input bg-white px-4 text-[16px] shadow-none transition-all placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:border-royal focus-visible:ring-4 focus-visible:ring-royal/10 disabled:cursor-not-allowed disabled:opacity-50",
+          className
+        )}
+        ref={ref}
+        {...props}
+      />
+    );
+  }
 );
-Card.displayName = "Card";
+Input.displayName = "Input";
 
-const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex flex-col gap-1 pb-4", className)} {...props} />
-  )
-);
-CardHeader.displayName = "CardHeader";
-
-const CardTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLHeadingElement>>(
-  ({ className, ...props }, ref) => (
-    <h3 ref={ref} className={cn("text-[17px] font-bold tracking-tight leading-none", className)} {...props} />
-  )
-);
-CardTitle.displayName = "CardTitle";
-
-const CardDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
-  ({ className, ...props }, ref) => (
-    <p ref={ref} className={cn("text-[13px] text-muted-foreground leading-relaxed", className)} {...props} />
-  )
-);
-CardDescription.displayName = "CardDescription";
-
-const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => <div ref={ref} className={cn(className)} {...props} />
-);
-CardContent.displayName = "CardContent";
-
-export { Card, CardHeader, CardTitle, CardDescription, CardContent, cardVariants };
+export { Input };

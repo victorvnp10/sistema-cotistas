@@ -1,77 +1,91 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+import { Navigate, Route, Routes } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import Login from "@/pages/Login";
+import CriarGrupo from "@/pages/CriarGrupo";
+import AguardandoConvite from "@/pages/AguardandoConvite";
+import Dashboard from "@/pages/Dashboard";
+import Calendario from "@/pages/Calendario";
+import Cotistas from "@/pages/Cotistas";
+import Feriados from "@/pages/Feriados";
+import Orcamento from "@/pages/Orcamento";
+import Manutencao from "@/pages/Manutencao";
+import Diario from "@/pages/Diario";
+import Seguro from "@/pages/Seguro";
+import Informacoes from "@/pages/Informacoes";
+import PainelGestor from "@/pages/PainelGestor";
+import ProvisionarGrupo from "@/pages/ProvisionarGrupo";
+import AppLayout from "@/components/AppLayout";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@layer base {
-  :root {
-    /* Neutros */
-    --background: 210 25% 98%;
-    --foreground: 215 30% 14%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 215 30% 14%;
-
-    --muted: 210 20% 95%;
-    --muted-foreground: 215 12% 45%;
-
-    --secondary: 210 25% 96%;
-    --secondary-foreground: 215 30% 14%;
-
-    --accent: 213 60% 96%;
-    --accent-foreground: 215 30% 14%;
-
-    --border: 213 20% 90%;
-    --input: 213 20% 90%;
-
-    /* Paleta principal do briefing */
-    --petrol: 195 55% 22%;   /* azul petróleo */
-    --ocean: 205 65% 38%;    /* azul oceano */
-    --royal: 226 71% 55%;    /* azul royal — cor de destaque/primária */
-
-    --primary: 226 71% 55%;
-    --primary-foreground: 0 0% 100%;
-    --ring: 226 71% 55%;
-
-    --success: 152 55% 38%;
-    --success-foreground: 0 0% 100%;
-    --success-soft: 152 60% 94%;
-
-    --warning: 32 90% 50%;
-    --warning-soft: 32 90% 95%;
-
-    --destructive: 4 70% 55%;
-    --destructive-foreground: 0 0% 100%;
-
-    --radius: 1.25rem;
-  }
+function TelaCarregando() {
+  return (
+    <div className="flex min-h-screen items-center justify-center text-muted-foreground">
+      Carregando...
+    </div>
+  );
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  html {
-    -webkit-tap-highlight-color: transparent;
-  }
-  body {
-    @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  }
-  ::selection {
-    @apply bg-royal/15;
-  }
-}
+export default function App() {
+  const { carregando, session, membresias, ehAdmin, ehMaster } = useAuth();
 
-@layer utilities {
-  .scrollbar-none::-webkit-scrollbar { display: none; }
-  .scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }
-}
+  if (carregando) return <TelaCarregando />;
 
-@media print {
-  @page { size: A4; margin: 14mm; }
-  .no-print { display: none !important; }
-  header, nav { display: none !important; }
-  body { background: #fff; }
+  return (
+    <Routes>
+      <Route path="/login" element={session ? <Navigate to="/" replace /> : <Login />} />
+      <Route
+        path="/criar-grupo"
+        element={
+          !session ? (
+            <Navigate to="/login" replace />
+          ) : membresias.length > 0 ? (
+            <Navigate to="/" replace />
+          ) : ehMaster ? (
+            <CriarGrupo />
+          ) : (
+            <Navigate to="/aguardando-convite" replace />
+          )
+        }
+      />
+      <Route
+        path="/aguardando-convite"
+        element={
+          !session ? (
+            <Navigate to="/login" replace />
+          ) : membresias.length > 0 ? (
+            <Navigate to="/" replace />
+          ) : ehMaster ? (
+            <Navigate to="/criar-grupo" replace />
+          ) : (
+            <AguardandoConvite />
+          )
+        }
+      />
+      <Route
+        path="/*"
+        element={
+          !session ? (
+            <Navigate to="/login" replace />
+          ) : membresias.length === 0 ? (
+            <Navigate to={ehMaster ? "/criar-grupo" : "/aguardando-convite"} replace />
+          ) : (
+            <AppLayout>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/calendario" element={<Calendario />} />
+                <Route path="/orcamento" element={<Orcamento />} />
+                <Route path="/manutencao" element={<Manutencao />} />
+                <Route path="/diario" element={<Diario />} />
+                <Route path="/seguro" element={<Seguro />} />
+                <Route path="/informacoes" element={<Informacoes />} />
+                <Route path="/painel-gestor" element={<PainelGestor />} />
+                {ehAdmin && <Route path="/cotistas" element={<Cotistas />} />}
+                {ehAdmin && <Route path="/feriados" element={<Feriados />} />}
+                {ehMaster && <Route path="/provisionar-grupo" element={<ProvisionarGrupo />} />}
+              </Routes>
+            </AppLayout>
+          )
+        }
+      />
+    </Routes>
+  );
 }

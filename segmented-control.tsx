@@ -1,206 +1,127 @@
-import { useState } from "react";
-import { Info, X, Copy, ExternalLink, Eye, AlertTriangle } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/contexts/ToastContext";
-import { useInformacoes, useSalvarInformacao, useExcluirInformacao } from "@/lib/queries/useInformacoes";
-import { extrairDriveFileId, extrairYoutubeId, ehUrl } from "@/lib/linkUtils";
-import { Card } from "@/components/ui/card";
+import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Anchor, Mail, Lock } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Modal } from "@/components/ui/modal";
-import { EmptyState } from "@/components/ui/empty-state";
-import type { CategoriaInformacao, Database } from "@/types/database.types";
+import { Card, CardContent } from "@/components/ui/card";
 
-type Informacao = Database["public"]["Tables"]["informacoes_uteis"]["Row"];
+export default function Login() {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [modo, setModo] = useState<"entrar" | "cadastrar">("entrar");
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [avisoCadastro, setAvisoCadastro] = useState<string | null>(null);
 
-const CATEGORIAS: CategoriaInformacao[] = ["Contato", "Documento", "Senha_Acesso", "Procedimento", "Outro"];
-const LABEL_CATEGORIA: Record<CategoriaInformacao, string> = {
-  Contato: "Contato", Documento: "Documento", Senha_Acesso: "Senha/Acesso", Procedimento: "Procedimento", Outro: "Outro",
-};
+  async function aoEnviar(e: FormEvent) {
+    e.preventDefault();
+    setErro(null);
+    setAvisoCadastro(null);
+    setCarregando(true);
 
-export default function Informacoes() {
-  const { ehAdmin } = useAuth();
-  const toast = useToast();
-  const { data: informacoes, isLoading } = useInformacoes();
-  const salvar = useSalvarInformacao();
-  const excluir = useExcluirInformacao();
-
-  const [categoria, setCategoria] = useState<CategoriaInformacao>("Contato");
-  const [rotulo, setRotulo] = useState("");
-  const [valor, setValor] = useState("");
-  const [observacao, setObservacao] = useState("");
-  const [visualizando, setVisualizando] = useState<Informacao | null>(null);
-  const [excluindo, setExcluindo] = useState<Informacao | null>(null);
-
-  async function adicionar() {
-    if (!rotulo || !valor) { toast.erro("Preencha rótulo e valor."); return; }
-    try {
-      await salvar.mutateAsync({ categoria, rotulo, valor, observacao });
-      toast.sucesso("Informação salva!");
-      setRotulo(""); setValor(""); setObservacao("");
-    } catch (e) {
-      toast.erro(e instanceof Error ? e.message : "Erro ao salvar.");
+    if (modo === "entrar") {
+      const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+      setCarregando(false);
+      if (error) {
+        setErro("E-mail ou senha incorretos.");
+        return;
+      }
+      navigate("/", { replace: true });
+    } else {
+      const { error } = await supabase.auth.signUp({ email, password: senha });
+      setCarregando(false);
+      if (error) {
+        setErro(error.message);
+        return;
+      }
+      setAvisoCadastro(
+        "Conta criada! Verifique seu e-mail para confirmar o cadastro e depois faça login."
+      );
+      setModo("entrar");
     }
-  }
-
-  async function confirmarExclusao() {
-    if (!excluindo) return;
-    try {
-      await excluir.mutateAsync(excluindo.id);
-      toast.sucesso("Excluído!");
-      setExcluindo(null);
-    } catch (e) {
-      toast.erro(e instanceof Error ? e.message : "Erro ao excluir.");
-    }
-  }
-
-  async function copiar(texto: string) {
-    try {
-      await navigator.clipboard.writeText(texto);
-      toast.sucesso("Copiado para a área de transferência!");
-    } catch {
-      toast.erro("Não foi possível copiar.");
-    }
-  }
-
-  function aoClicarValor(info: Informacao) {
-    const driveId = extrairDriveFileId(info.valor);
-    const youtubeId = extrairYoutubeId(info.valor);
-    if (driveId || youtubeId) {
-      setVisualizando(info);
-      return;
-    }
-    if (ehUrl(info.valor)) {
-      window.open(info.valor, "_blank", "noopener,noreferrer");
-      return;
-    }
-    // Contato, PIX, senha etc. — copia direto
-    copiar(info.valor);
-  }
-
-  const agrupado = new Map<CategoriaInformacao, Informacao[]>();
-  for (const info of informacoes ?? []) {
-    const lista = agrupado.get(info.categoria) ?? [];
-    lista.push(info);
-    agrupado.set(info.categoria, lista);
   }
 
   return (
-    <div className="flex flex-col gap-4 pb-6">
-      <Card>
-        <h2 className="mb-4 flex items-center gap-2 text-[15px] font-bold"><Info size={17} className="text-royal" /> Nova informação</h2>
-        <div className="flex flex-col gap-3">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Categoria</Label>
-              <select className="h-12 rounded-2xl border border-input bg-white px-3 text-[16px]" value={categoria} onChange={(e) => setCategoria(e.target.value as CategoriaInformacao)}>
-                {CATEGORIAS.map((c) => <option key={c} value={c}>{LABEL_CATEGORIA[c]}</option>)}
-              </select>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-petrol via-ocean to-royal p-5">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="w-full max-w-sm"
+      >
+        <Card className="shadow-floating">
+          <CardContent className="flex flex-col items-center gap-6 py-2">
+            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-royal to-ocean text-white shadow-soft">
+              <Anchor size={26} />
             </div>
-            <div className="flex flex-col gap-1.5"><Label>Rótulo</Label><Input value={rotulo} onChange={(e) => setRotulo(e.target.value)} placeholder="Ex: Marina - telefone" /></div>
-            <div className="flex flex-col gap-1.5"><Label>Valor</Label><Input value={valor} onChange={(e) => setValor(e.target.value)} placeholder="Telefone, PIX, link, documento..." /></div>
-          </div>
-          <div className="flex flex-col gap-1.5"><Label>Observação (opcional)</Label><Input value={observacao} onChange={(e) => setObservacao(e.target.value)} /></div>
-          <Button onClick={adicionar} disabled={salvar.isPending} className="self-start">Adicionar</Button>
-        </div>
-      </Card>
+            <div className="text-center">
+              <h1 className="text-[22px] font-extrabold tracking-tight">Gestão de Cotistas</h1>
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                {modo === "entrar" ? "Entre com sua conta" : "Crie sua conta"}
+              </p>
+            </div>
 
-      <Card>
-        <h2 className="mb-4 text-[15px] font-bold">Informações cadastradas</h2>
-        <p className="mb-4 -mt-2 text-[11.5px] text-muted-foreground">
-          Toque em documentos/vídeos para visualizar, em links para abrir, e em contatos/PIX para copiar.
-        </p>
-        {isLoading ? null : !informacoes?.length ? (
-          <EmptyState titulo="Nenhuma informação cadastrada" />
-        ) : (
-          <div className="flex flex-col gap-5">
-            {[...agrupado.entries()].map(([cat, lista]) => (
-              <div key={cat}>
-                <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{LABEL_CATEGORIA[cat]}</p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {lista.map((info) => {
-                    const driveId = extrairDriveFileId(info.valor);
-                    const youtubeId = extrairYoutubeId(info.valor);
-                    const isLink = ehUrl(info.valor);
-                    const Icone = driveId || youtubeId ? Eye : isLink ? ExternalLink : Copy;
-                    return (
-                      <button
-                        key={info.id}
-                        onClick={() => aoClicarValor(info)}
-                        className="flex items-center gap-2 rounded-2xl border border-border/60 bg-white p-3 text-left transition-colors hover:bg-secondary/60 active:scale-[0.99]"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[10px] font-bold uppercase text-muted-foreground">{info.rotulo}</p>
-                          <p className="truncate text-[14px] font-semibold">{info.valor}</p>
-                          {info.observacao && <p className="truncate text-[11.5px] text-muted-foreground">{info.observacao}</p>}
-                        </div>
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-accent text-royal">
-                          <Icone size={15} />
-                        </span>
-                        {ehAdmin && (
-                          <span
-                            role="button"
-                            onClick={(e) => { e.stopPropagation(); setExcluindo(info); }}
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                          >
-                            <X size={14} />
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+            <form onSubmit={aoEnviar} className="flex w-full flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label>E-mail</Label>
+                <Input
+                  icon={<Mail size={17} />}
+                  type="email"
+                  autoComplete="username"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                />
               </div>
-            ))}
-          </div>
-        )}
-      </Card>
+              <div className="flex flex-col gap-1.5">
+                <Label>Senha</Label>
+                <Input
+                  icon={<Lock size={17} />}
+                  type="password"
+                  autoComplete={modo === "entrar" ? "current-password" : "new-password"}
+                  required
+                  minLength={6}
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  placeholder="••••••••"
+                />
+              </div>
 
-      {/* Visualização rápida de documentos/vídeos */}
-      <Modal aberto={!!visualizando} aoFechar={() => setVisualizando(null)} titulo={visualizando?.rotulo ?? ""} className="sm:max-w-2xl">
-        {visualizando && (
-          <div className="flex flex-col gap-3">
-            <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black">
-              {extrairYoutubeId(visualizando.valor) ? (
-                <iframe
-                  className="h-full w-full"
-                  src={`https://www.youtube.com/embed/${extrairYoutubeId(visualizando.valor)}`}
-                  allow="autoplay; encrypted-media; picture-in-picture"
-                  allowFullScreen
-                />
-              ) : (
-                <iframe
-                  className="h-full w-full"
-                  src={`https://drive.google.com/file/d/${extrairDriveFileId(visualizando.valor)}/preview`}
-                  allow="autoplay"
-                />
+              {erro && (
+                <p className="rounded-xl bg-destructive/10 px-3 py-2 text-[13px] font-medium text-destructive">
+                  {erro}
+                </p>
               )}
-            </div>
-            <Button variant="outline" onClick={() => window.open(visualizando.valor, "_blank", "noopener,noreferrer")}>
-              <ExternalLink size={16} /> Abrir em nova aba
-            </Button>
-          </div>
-        )}
-      </Modal>
+              {avisoCadastro && (
+                <p className="rounded-xl bg-success-soft px-3 py-2 text-[13px] font-medium text-success">
+                  {avisoCadastro}
+                </p>
+              )}
 
-      {/* Dupla confirmação de exclusão */}
-      <Modal aberto={!!excluindo} aoFechar={() => setExcluindo(null)} titulo="Excluir informação">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-3 rounded-2xl bg-destructive/5 p-4">
-            <AlertTriangle size={20} className="mt-0.5 shrink-0 text-destructive" />
-            <p className="text-[13.5px] text-foreground">
-              Tem certeza que deseja excluir <strong>"{excluindo?.rotulo}"</strong>? Essa ação não pode ser desfeita.
-            </p>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setExcluindo(null)}>Cancelar</Button>
-            <Button variant="destructive" onClick={confirmarExclusao} disabled={excluir.isPending}>
-              {excluir.isPending ? "Excluindo..." : "Sim, excluir"}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+              <Button type="submit" size="lg" className="w-full" disabled={carregando}>
+                {carregando ? "Aguarde..." : modo === "entrar" ? "Entrar" : "Criar conta"}
+              </Button>
+
+              <button
+                type="button"
+                className="text-[13px] font-semibold text-muted-foreground hover:text-royal"
+                onClick={() => {
+                  setErro(null);
+                  setAvisoCadastro(null);
+                  setModo(modo === "entrar" ? "cadastrar" : "entrar");
+                }}
+              >
+                {modo === "entrar" ? "Ainda não tem conta? Cadastre-se" : "Já tem conta? Entrar"}
+              </button>
+            </form>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 }

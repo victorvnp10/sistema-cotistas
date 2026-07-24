@@ -1,27 +1,41 @@
 import { type ReactNode } from "react";
-import { Inbox } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export function EmptyState({
-  icon,
-  titulo,
-  descricao,
-  acao,
+export function ListItem({
+  leading,
+  title,
+  subtitle,
+  trailing,
+  chevron,
+  onClick,
+  className,
 }: {
-  icon?: ReactNode;
-  titulo: string;
-  descricao?: string;
-  acao?: ReactNode;
+  leading?: ReactNode;
+  title: ReactNode;
+  subtitle?: ReactNode;
+  trailing?: ReactNode;
+  chevron?: boolean;
+  onClick?: () => void;
+  className?: string;
 }) {
+  const Comp = onClick ? "button" : "div";
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl bg-secondary/50 px-6 py-10 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-muted-foreground/60 shadow-softer">
-        {icon ?? <Inbox size={22} />}
+    <Comp
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-2xl bg-white p-3.5 text-left shadow-softer border border-border/50 transition-colors",
+        onClick && "hover:bg-secondary/60 active:scale-[0.99]",
+        className
+      )}
+    >
+      {leading}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[14.5px] font-semibold text-foreground">{title}</p>
+        {subtitle && <p className="truncate text-[12.5px] text-muted-foreground">{subtitle}</p>}
       </div>
-      <div>
-        <p className="text-[14.5px] font-semibold text-foreground">{titulo}</p>
-        {descricao && <p className="mt-0.5 text-[13px] text-muted-foreground">{descricao}</p>}
-      </div>
-      {acao}
-    </div>
+      {trailing}
+      {chevron && <ChevronRight size={18} className="shrink-0 text-muted-foreground/50" />}
+    </Comp>
   );
 }

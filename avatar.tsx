@@ -1,279 +1,271 @@
-import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { useState } from "react";
+import { Wrench, Gauge, CalendarClock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { useMembros } from "@/lib/queries/useMembros";
-import { useFeriados } from "@/lib/queries/useFeriados";
-import { useReservas, useCriarReserva, useCancelarReserva } from "@/lib/queries/useReservas";
-import { construirSetFeriados, contaParaEscala, formatarDataBR, formatarDataISO } from "@/lib/ranking";
+import {
+  useManutencoes,
+  useUltimoHorimetroManutencao,
+  useSalvarManutencao,
+  useExcluirManutencao,
+  useConcluirManutencaoData,
+  useConcluirManutencaoHoras,
+} from "@/lib/queries/useManutencoes";
+import { formatarMoeda } from "@/lib/formato";
+import { formatarDataBR } from "@/lib/ranking";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
-import { Fab } from "@/components/ui/fab";
 import { Badge } from "@/components/ui/badge";
-import { ListItem } from "@/components/ui/list-item";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { EmptyState } from "@/components/ui/empty-state";
-import { cn } from "@/lib/utils";
-import type { Database } from "@/types/database.types";
+import type { Database, TipoGatilhoManutencao } from "@/types/database.types";
 
-type Periodo = Database["public"]["Tables"]["reservas"]["Row"]["periodo"];
+type Manutencao = Database["public"]["Tables"]["manutencoes"]["Row"];
 
-const MESES = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-];
-const DIAS_SEMANA = ["D", "S", "T", "Q", "Q", "S", "S"];
+function status(m: Manutencao, horimetroAtual: number) {
+  if (m.feito) return "ok";
+  if (m.tipo_gatilho === "horas") {
+    const restantes = (m.horimetro_base + (m.intervalo_horas ?? 0)) - horimetroAtual;
+    if (restantes < 0) return "venc";
+    if (restantes <= 10) return "urgent";
+    if (restantes <= 30) return "warn";
+    if (restantes <= 60) return "alert";
+    return "normal";
+  }
+  if (!m.proxima_data) return "normal";
+  const dias = Math.round((new Date(m.proxima_data + "T00:00:00").getTime() - Date.now()) / 86400000);
+  if (dias < 0) return "venc";
+  if (dias <= 7) return "urgent";
+  if (dias <= 15) return "warn";
+  if (dias <= 30) return "alert";
+  return "normal";
+}
 
-export default function Calendario() {
-  const { membroAtual } = useAuth();
-  const hoje = new Date();
-  const [ano, setAno] = useState(hoje.getFullYear());
-  const [mes, setMes] = useState(hoje.getMonth());
+const BADGE_VARIANT: Record<string, "success" | "neutral" | "warning" | "error"> = {
+  ok: "success", normal: "neutral", alert: "warning", warn: "warning", urgent: "error", venc: "error",
+};
+const LABELS: Record<string, string> = {
+  ok: "Concluída", normal: "Em dia", alert: "Atenção", warn: "Próximo", urgent: "Urgente", venc: "Vencida",
+};
 
-  const { data: membros } = useMembros();
-  const { data: feriados } = useFeriados();
-  const { data: reservas } = useReservas();
-  const [diaSelecionado, setDiaSelecionado] = useState<string | null>(null);
-  const [novaReservaAberta, setNovaReservaAberta] = useState(false);
+export default function Manutencao() {
+  const { podeGerenciarOrcamento } = useAuth();
+  const toast = useToast();
+  const { data: manutencoes, isLoading } = useManutencoes();
+  const { data: horimetroAtual } = useUltimoHorimetroManutencao();
+  const excluir = useExcluirManutencao();
+  const concluirData = useConcluirManutencaoData();
+  const concluirHoras = useConcluirManutencaoHoras();
 
-  const feriadosSet = useMemo(() => construirSetFeriados(feriados ?? []), [feriados]);
+  const [modalForm, setModalForm] = useState<{ aberto: boolean; editando: Manutencao | null }>({ aberto: false, editando: null });
+  const [modalConcluirData, setModalConcluirData] = useState<Manutencao | null>(null);
+  const [modalConcluirHoras, setModalConcluirHoras] = useState<Manutencao | null>(null);
+  const [reagendarDias, setReagendarDias] = useState("");
+  const [custoReal, setCustoReal] = useState("");
 
-  function mudarMes(delta: number) {
-    let novoMes = mes + delta;
-    let novoAno = ano;
-    if (novoMes < 0) { novoMes = 11; novoAno--; }
-    if (novoMes > 11) { novoMes = 0; novoAno++; }
-    setMes(novoMes);
-    setAno(novoAno);
+  const horimetro = horimetroAtual ?? 0;
+
+  async function concluirPorData() {
+    if (!modalConcluirData) return;
+    try {
+      let proximaData: string | undefined;
+      if (reagendarDias) {
+        const d = new Date();
+        d.setDate(d.getDate() + Number(reagendarDias));
+        proximaData = d.toISOString().slice(0, 10);
+      }
+      await concluirData.mutateAsync({ id: modalConcluirData.id, reagendarDias: reagendarDias ? Number(reagendarDias) : undefined, proximaData });
+      toast.sucesso("Manutenção concluída!");
+      setModalConcluirData(null);
+      setReagendarDias("");
+    } catch (e) {
+      toast.erro(e instanceof Error ? e.message : "Erro.");
+    }
   }
 
-  const primeiroDiaSemana = new Date(ano, mes, 1).getDay();
-  const ultimoDia = new Date(ano, mes + 1, 0).getDate();
-  const hojeISO = formatarDataISO(hoje);
-
-  function nomeMembro(id: string) {
-    return membros?.find((m) => m.id === id)?.nome ?? "?";
+  async function concluirPorHoras() {
+    if (!modalConcluirHoras || !custoReal) return;
+    try {
+      await concluirHoras.mutateAsync({ manutencaoId: modalConcluirHoras.id, custoReal: Number(custoReal) });
+      toast.sucesso("Manutenção concluída e custo rateado!");
+      setModalConcluirHoras(null);
+      setCustoReal("");
+    } catch (e) {
+      toast.erro(e instanceof Error ? e.message : "Erro ao concluir.");
+    }
   }
-
-  const minhasFuturas = (reservas ?? [])
-    .filter((r) => r.membro_id === membroAtual?.id && r.status !== "cancelado" && r.data >= hojeISO)
-    .sort((a, b) => (a.data < b.data ? -1 : 1));
 
   return (
-    <div className="relative flex flex-col gap-4 pb-6">
+    <div className="flex flex-col gap-4 pb-6">
       <Card>
         <div className="mb-4 flex items-center justify-between">
-          <button onClick={() => mudarMes(-1)} className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary hover:bg-accent">
-            <ChevronLeft size={18} />
-          </button>
-          <h2 className="text-[16px] font-extrabold tracking-tight">{MESES[mes]} {ano}</h2>
-          <button onClick={() => mudarMes(1)} className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary hover:bg-accent">
-            <ChevronRight size={18} />
-          </button>
+          <h2 className="flex items-center gap-2 text-[15px] font-bold"><Wrench size={17} className="text-royal" /> Manutenções</h2>
+          {podeGerenciarOrcamento && <Button size="sm" onClick={() => setModalForm({ aberto: true, editando: null })}>Nova</Button>}
         </div>
-
-        <div className="mb-3 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
-          <Legenda cor="bg-royal" texto="Manhã ocupada" />
-          <Legenda cor="bg-ocean" texto="Tarde ocupada" />
-          <Legenda cor="bg-success-soft" texto="Livre" />
-        </div>
-
-        <div className="grid grid-cols-7 gap-1.5">
-          {DIAS_SEMANA.map((d, i) => (
-            <div key={i} className="pb-1 text-center text-[11px] font-bold text-muted-foreground/70">{d}</div>
-          ))}
-          {Array.from({ length: primeiroDiaSemana }).map((_, i) => <div key={`vazio-${i}`} />)}
-          {Array.from({ length: ultimoDia }).map((_, i) => {
-            const dia = i + 1;
-            const dataISO = `${ano}-${String(mes + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
-            const conta = contaParaEscala(dataISO, feriadosSet);
-            const resM = reservas?.find((r) => r.data === dataISO && r.periodo === "M" && r.status !== "cancelado");
-            const resT = reservas?.find((r) => r.data === dataISO && r.periodo === "T" && r.status !== "cancelado");
-
-            return (
-              <button
-                key={dataISO}
-                onClick={() => setDiaSelecionado(dataISO)}
-                className={cn(
-                  "flex min-h-[58px] flex-col rounded-xl border p-1 text-left transition-transform active:scale-95",
-                  conta ? "border-success/20 bg-success-soft/40" : "border-border/50 bg-white",
-                  dataISO === hojeISO && "ring-2 ring-royal ring-offset-1"
-                )}
-              >
-                <span className="mb-0.5 text-[11px] font-bold">{dia}</span>
-                <span className={cn("mb-0.5 truncate rounded-md px-1 py-0.5 text-[9px] font-bold text-white", resM ? "bg-royal" : "bg-transparent text-transparent")}>
-                  {resM ? nomeMembro(resM.membro_id) : "-"}
-                </span>
-                <span className={cn("truncate rounded-md px-1 py-0.5 text-[9px] font-bold text-white", resT ? "bg-ocean" : "bg-transparent text-transparent")}>
-                  {resT ? nomeMembro(resT.membro_id) : "-"}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </Card>
-
-      <Card>
-        <h2 className="mb-3 text-[15px] font-bold">Minhas reservas futuras</h2>
-        {!minhasFuturas.length ? (
-          <EmptyState titulo="Nenhuma reserva futura" descricao='Toque no "+" para reservar um turno.' />
+        {isLoading ? null : !manutencoes?.length ? (
+          <EmptyState titulo="Nenhuma manutenção cadastrada" />
         ) : (
-          <div className="flex flex-col gap-2">
-            {minhasFuturas.map((r) => (
-              <ListItem
-                key={r.id}
-                title={`${formatarDataBR(r.data)} · ${r.periodo === "M" ? "Manhã" : "Tarde"}`}
-                subtitle={contaParaEscala(r.data, feriadosSet) ? "Conta para a escala" : undefined}
-                trailing={contaParaEscala(r.data, feriadosSet) && <Badge variant="success">Escala</Badge>}
-                onClick={() => setDiaSelecionado(r.data)}
-              />
-            ))}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {manutencoes.map((m) => {
+              const st = status(m, horimetro);
+              return (
+                <div key={m.id} className="rounded-2xl border border-border/60 bg-white p-4">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <p className="text-[14px] font-bold">{m.descricao}</p>
+                    <Badge variant={BADGE_VARIANT[st]}>{LABELS[st]}</Badge>
+                  </div>
+                  <div className="mb-2 flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                    {m.tipo_gatilho === "horas" ? <Gauge size={13} /> : <CalendarClock size={13} />}
+                    {m.tipo_gatilho === "horas"
+                      ? `${horimetro.toFixed(1)}h de ${(m.horimetro_base + (m.intervalo_horas ?? 0)).toFixed(1)}h`
+                      : m.proxima_data ? formatarDataBR(m.proxima_data) : "—"}
+                  </div>
+                  {!!m.custo_previsto && <p className="mb-2 text-[12px] text-muted-foreground">Previsto: {formatarMoeda(m.custo_previsto)}</p>}
+                  {podeGerenciarOrcamento && (
+                    <div className="flex flex-wrap gap-2">
+                      {!m.feito && (m.tipo_gatilho === "horas" ? (
+                        <Button size="sm" variant="success" onClick={() => setModalConcluirHoras(m)}>Concluir</Button>
+                      ) : (
+                        <Button size="sm" variant="success" onClick={() => setModalConcluirData(m)}>Concluir</Button>
+                      ))}
+                      <Button size="sm" variant="outline" onClick={() => setModalForm({ aberto: true, editando: m })}>Editar</Button>
+                      <Button size="sm" variant="destructive" onClick={() => excluir.mutate(m.id)}>Excluir</Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </Card>
 
-      <Fab>
-        <Button variant="fab" size="fab" onClick={() => setNovaReservaAberta(true)} aria-label="Nova reserva">
-          <Plus size={26} />
-        </Button>
-      </Fab>
+      <ModalFormManutencao aberto={modalForm.aberto} editando={modalForm.editando} horimetroAtual={horimetro} aoFechar={() => setModalForm({ aberto: false, editando: null })} />
 
-      {diaSelecionado && <ModalDia dataISO={diaSelecionado} aoFechar={() => setDiaSelecionado(null)} />}
-      {novaReservaAberta && (
-        <ModalNovaReserva aoFechar={() => setNovaReservaAberta(false)} aoEscolherDia={(d) => { setNovaReservaAberta(false); setDiaSelecionado(d); }} />
-      )}
+      <Modal aberto={!!modalConcluirData} aoFechar={() => setModalConcluirData(null)} titulo="Confirmar execução">
+        <div className="flex flex-col gap-3">
+          <p className="text-[13.5px] text-muted-foreground">{modalConcluirData?.descricao}</p>
+          <div className="flex flex-col gap-1.5">
+            <Label>Reagendar em quantos dias? (opcional)</Label>
+            <Input type="number" min={1} value={reagendarDias} onChange={(e) => setReagendarDias(e.target.value)} />
+          </div>
+          <div className="mt-2 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setModalConcluirData(null)}>Cancelar</Button>
+            <Button variant="success" onClick={concluirPorData}>Confirmar</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal aberto={!!modalConcluirHoras} aoFechar={() => setModalConcluirHoras(null)} titulo="Concluir por horímetro">
+        <div className="flex flex-col gap-3">
+          <p className="text-[13.5px] text-muted-foreground">{modalConcluirHoras?.descricao}</p>
+          <p className="text-[12px] text-muted-foreground">
+            Horímetro atual: {horimetro.toFixed(1)}h (base: {modalConcluirHoras?.horimetro_base.toFixed(1)}h)
+          </p>
+          <div className="flex flex-col gap-1.5">
+            <Label>Custo real gasto (R$)</Label>
+            <Input type="number" min={0} step={0.01} value={custoReal} onChange={(e) => setCustoReal(e.target.value)} />
+          </div>
+          <div className="mt-2 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setModalConcluirHoras(null)}>Cancelar</Button>
+            <Button variant="success" onClick={concluirPorHoras} disabled={concluirHoras.isPending}>
+              {concluirHoras.isPending ? "Concluindo..." : "Concluir e ratear"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
 
-function Legenda({ cor, texto }: { cor: string; texto: string }) {
-  return (
-    <span className="flex items-center gap-1.5">
-      <span className={cn("h-2.5 w-2.5 rounded-full", cor)} />
-      {texto}
-    </span>
-  );
-}
-
-/** Sheet aberto pelo botão "+": escolher data/período rapidamente, sem precisar navegar o calendário até o mês certo. */
-function ModalNovaReserva({ aoFechar, aoEscolherDia }: { aoFechar: () => void; aoEscolherDia: (data: string) => void }) {
-  const { membroAtual } = useAuth();
+function ModalFormManutencao({ aberto, editando, horimetroAtual, aoFechar }: { aberto: boolean; editando: Manutencao | null; horimetroAtual: number; aoFechar: () => void }) {
   const toast = useToast();
-  const criar = useCriarReserva();
+  const salvar = useSalvarManutencao();
 
-  const [data, setData] = useState(formatarDataISO(new Date()));
-  const [periodo, setPeriodo] = useState<Periodo>("M");
+  const [descricao, setDescricao] = useState(editando?.descricao ?? "");
+  const [tipoGatilho, setTipoGatilho] = useState<TipoGatilhoManutencao>(editando?.tipo_gatilho ?? "data");
+  const [periodicidade, setPeriodicidade] = useState(editando?.periodicidade ?? "");
+  const [proximaData, setProximaData] = useState(editando?.proxima_data ?? "");
+  const [intervaloHoras, setIntervaloHoras] = useState(String(editando?.intervalo_horas ?? ""));
+  const [custoPrevisto, setCustoPrevisto] = useState(String(editando?.custo_previsto ?? ""));
+  const [observacao, setObservacao] = useState(editando?.observacao ?? "");
 
-  async function reservar() {
-    if (!data) { toast.erro("Selecione uma data."); return; }
+  const chave = editando?.id ?? "novo";
+  const [ultimaChave, setUltimaChave] = useState(chave);
+  if (chave !== ultimaChave) {
+    setUltimaChave(chave);
+    setDescricao(editando?.descricao ?? "");
+    setTipoGatilho(editando?.tipo_gatilho ?? "data");
+    setPeriodicidade(editando?.periodicidade ?? "");
+    setProximaData(editando?.proxima_data ?? "");
+    setIntervaloHoras(String(editando?.intervalo_horas ?? ""));
+    setCustoPrevisto(String(editando?.custo_previsto ?? ""));
+    setObservacao(editando?.observacao ?? "");
+  }
+
+  async function salvarForm() {
+    if (!descricao) { toast.erro("Preencha a descrição."); return; }
+    if (tipoGatilho === "data" && !proximaData) { toast.erro("Preencha a próxima data."); return; }
+    if (tipoGatilho === "horas" && !intervaloHoras) { toast.erro("Informe o intervalo de horas."); return; }
     try {
-      await criar.mutateAsync({ membroId: membroAtual!.id, data, periodo });
-      toast.sucesso("Reserva confirmada!");
+      await salvar.mutateAsync({
+        id: editando?.id, descricao, tipo_gatilho: tipoGatilho,
+        periodicidade: periodicidade || null, proxima_data: proximaData || null,
+        intervalo_horas: intervaloHoras ? Number(intervaloHoras) : null,
+        horimetro_base: editando?.horimetro_base ?? horimetroAtual,
+        custo_previsto: custoPrevisto ? Number(custoPrevisto) : 0,
+        observacao: observacao || null,
+      });
+      toast.sucesso("Manutenção salva!");
       aoFechar();
     } catch (e) {
-      toast.erro(e instanceof Error ? e.message : "Erro ao reservar.");
+      toast.erro(e instanceof Error ? e.message : "Erro ao salvar.");
     }
   }
 
   return (
-    <Modal aberto aoFechar={aoFechar} titulo="Nova reserva">
+    <Modal aberto={aberto} aoFechar={aoFechar} titulo={editando ? "Editar manutenção" : "Nova manutenção"}>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
-          <Label>Data</Label>
-          <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+          <Label>Descrição</Label>
+          <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex: Troca de óleo" />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label>Período</Label>
-          <select className="h-12 rounded-2xl border border-input bg-white px-4 text-[16px]" value={periodo} onChange={(e) => setPeriodo(e.target.value as Periodo)}>
-            <option value="M">Manhã</option>
-            <option value="T">Tarde</option>
-          </select>
+          <Label>Gatilho</Label>
+          <SegmentedControl opcoes={[{ valor: "data", label: "Por data" }, { valor: "horas", label: "Por horímetro" }]} valor={tipoGatilho} aoMudar={setTipoGatilho} />
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={() => aoEscolherDia(data)}>Ver dia no calendário</Button>
-          <Button className="flex-1" onClick={reservar} disabled={criar.isPending}>
-            {criar.isPending ? "Reservando..." : "Confirmar"}
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-function ModalDia({ dataISO, aoFechar }: { dataISO: string; aoFechar: () => void }) {
-  const { membroAtual, ehAdmin } = useAuth();
-  const toast = useToast();
-  const { data: membros } = useMembros();
-  const { data: reservas } = useReservas();
-  const criar = useCriarReserva();
-  const cancelar = useCancelarReserva();
-
-  const [membroId, setMembroId] = useState(membroAtual?.id ?? "");
-  const [periodo, setPeriodo] = useState<Periodo>("M");
-
-  const resM = reservas?.find((r) => r.data === dataISO && r.periodo === "M" && r.status !== "cancelado");
-  const resT = reservas?.find((r) => r.data === dataISO && r.periodo === "T" && r.status !== "cancelado");
-
-  async function reservar() {
-    try {
-      await criar.mutateAsync({ membroId, data: dataISO, periodo });
-      toast.sucesso("Reserva confirmada!");
-      aoFechar();
-    } catch (e) {
-      toast.erro(e instanceof Error ? e.message : "Erro ao reservar.");
-    }
-  }
-
-  async function cancelarReserva(id: string) {
-    try {
-      await cancelar.mutateAsync(id);
-      toast.sucesso("Reserva cancelada.");
-      aoFechar();
-    } catch (e) {
-      toast.erro(e instanceof Error ? e.message : "Erro ao cancelar.");
-    }
-  }
-
-  const podeAlterar = (donoId: string) => donoId === membroAtual?.id || ehAdmin;
-
-  return (
-    <Modal aberto aoFechar={aoFechar} titulo={dataISO.split("-").reverse().join("/")}>
-      <div className="flex flex-col gap-3">
-        {[{ label: "Manhã", res: resM }, { label: "Tarde", res: resT }].map(({ label, res }) => (
-          <div key={label} className="flex items-center justify-between rounded-2xl bg-secondary/60 p-3.5">
-            <span className="text-[13.5px] font-semibold">{label}</span>
-            {res ? (
-              <div className="flex items-center gap-2">
-                <span className="text-[13.5px]">{membros?.find((m) => m.id === res.membro_id)?.nome}</span>
-                {podeAlterar(res.membro_id) && (
-                  <Button size="sm" variant="destructive" onClick={() => cancelarReserva(res.id)}>Cancelar</Button>
-                )}
-              </div>
-            ) : (
-              <span className="text-[13px] text-success">Livre</span>
-            )}
+        {tipoGatilho === "data" ? (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label>Periodicidade</Label>
+              <Input value={periodicidade} onChange={(e) => setPeriodicidade(e.target.value)} placeholder="Ex: Anual" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Próxima data</Label>
+              <Input type="date" value={proximaData} onChange={(e) => setProximaData(e.target.value)} />
+            </div>
           </div>
-        ))}
-
-        {(!resM || !resT) && (
-          <div className="flex flex-col gap-3 border-t border-border/60 pt-4">
-            <p className="text-[13.5px] font-bold">Fazer nova reserva</p>
-            {ehAdmin && (
-              <select className="h-12 rounded-2xl border border-input bg-white px-4 text-[16px]" value={membroId} onChange={(e) => setMembroId(e.target.value)}>
-                {membros?.filter((m) => m.ativo).map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
-              </select>
-            )}
-            <select className="h-12 rounded-2xl border border-input bg-white px-4 text-[16px]" value={periodo} onChange={(e) => setPeriodo(e.target.value as Periodo)}>
-              {!resM && <option value="M">Manhã</option>}
-              {!resT && <option value="T">Tarde</option>}
-            </select>
-            <Button size="lg" onClick={reservar} disabled={criar.isPending}>
-              {criar.isPending ? "Reservando..." : "Confirmar reserva"}
-            </Button>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label>Intervalo (horas)</Label>
+              <Input type="number" min={1} value={intervaloHoras} onChange={(e) => setIntervaloHoras(e.target.value)} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Custo previsto (R$)</Label>
+              <Input type="number" min={0} step={0.01} value={custoPrevisto} onChange={(e) => setCustoPrevisto(e.target.value)} />
+            </div>
           </div>
         )}
+        <div className="flex flex-col gap-1.5">
+          <Label>Observação</Label>
+          <Input value={observacao} onChange={(e) => setObservacao(e.target.value)} />
+        </div>
+        <div className="mt-2 flex justify-end gap-2">
+          <Button variant="ghost" onClick={aoFechar}>Cancelar</Button>
+          <Button onClick={salvarForm} disabled={salvar.isPending}>{salvar.isPending ? "Salvando..." : "Salvar"}</Button>
+        </div>
       </div>
     </Modal>
   );
