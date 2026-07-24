@@ -71,37 +71,25 @@ export function useExcluirManutencao() {
   });
 }
 
-export function useConcluirManutencaoData() {
+// Conclui uma manutenção no modelo híbrido: sempre pede a data de
+// fechamento (não precisa ser hoje); custo real e reagendamento em dias
+// são opcionais. O próximo ciclo sempre começa exatamente na data de
+// fechamento informada.
+export function useConcluirManutencao() {
   const queryClient = useQueryClient();
   const { grupoAtual } = useAuth();
   return useMutation({
-    mutationFn: async (payload: { id: string; reagendarDias?: number; proximaData?: string }) => {
-      if (payload.reagendarDias && payload.proximaData) {
-        const { error } = await supabase
-          .from("manutencoes")
-          .update({ feito: false, proxima_data: payload.proximaData, data_execucao: new Date().toISOString().slice(0, 10) })
-          .eq("id", payload.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("manutencoes")
-          .update({ feito: true, data_execucao: new Date().toISOString().slice(0, 10) })
-          .eq("id", payload.id);
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => invalidar(queryClient, grupoAtual?.id),
-  });
-}
-
-export function useConcluirManutencaoHoras() {
-  const queryClient = useQueryClient();
-  const { grupoAtual } = useAuth();
-  return useMutation({
-    mutationFn: async (payload: { manutencaoId: string; custoReal: number }) => {
-      const { error } = await supabase.rpc("concluir_manutencao_horas", {
+    mutationFn: async (payload: {
+      manutencaoId: string;
+      dataFechamento: string;
+      custoReal?: number;
+      reagendarDias?: number;
+    }) => {
+      const { error } = await supabase.rpc("concluir_manutencao", {
         p_manutencao_id: payload.manutencaoId,
-        p_custo_real: payload.custoReal,
+        p_data_fechamento: payload.dataFechamento,
+        p_custo_real: payload.custoReal ?? null,
+        p_reagendar_dias: payload.reagendarDias ?? null,
       });
       if (error) throw error;
     },
