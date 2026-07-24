@@ -1,92 +1,68 @@
-import { Navigate, Route, Routes } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { MASTER_EMAIL } from "@/lib/constants";
-import Login from "@/pages/Login";
-import CriarGrupo from "@/pages/CriarGrupo";
-import AguardandoConvite from "@/pages/AguardandoConvite";
-import Dashboard from "@/pages/Dashboard";
-import Calendario from "@/pages/Calendario";
-import Cotistas from "@/pages/Cotistas";
-import Feriados from "@/pages/Feriados";
-import Orcamento from "@/pages/Orcamento";
-import Manutencao from "@/pages/Manutencao";
-import Diario from "@/pages/Diario";
-import Seguro from "@/pages/Seguro";
-import Informacoes from "@/pages/Informacoes";
-import PainelGestor from "@/pages/PainelGestor";
-import AppLayout from "@/components/AppLayout";
+import { type ReactNode } from "react";
+import { NavLink } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
-function TelaCarregando() {
-  return (
-    <div className="flex min-h-screen items-center justify-center text-muted-foreground">
-      Carregando...
-    </div>
-  );
+export interface ItemNav {
+  to?: string;
+  label: string;
+  icon: ReactNode;
+  onClick?: () => void;
+  ativo?: boolean;
 }
 
-export default function App() {
-  const { carregando, session, membresias, ehAdmin } = useAuth();
-
-  if (carregando) return <TelaCarregando />;
-
-  const ehMaster = session?.user.email === MASTER_EMAIL;
-
+export function BottomNavigation({ itens }: { itens: ItemNav[] }) {
   return (
-    <Routes>
-      <Route path="/login" element={session ? <Navigate to="/" replace /> : <Login />} />
-      <Route
-        path="/criar-grupo"
-        element={
-          !session ? (
-            <Navigate to="/login" replace />
-          ) : membresias.length > 0 ? (
-            <Navigate to="/" replace />
-          ) : ehMaster ? (
-            <CriarGrupo />
+    <nav className="fixed bottom-0 left-0 right-0 z-20 border-t border-border/60 bg-white/90 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
+      <div className="mx-auto flex max-w-lg items-stretch justify-around">
+        {itens.map((item) =>
+          item.to ? (
+            <NavLink
+              key={item.label}
+              to={item.to}
+              end={item.to === "/"}
+              className={({ isActive }) =>
+                cn(
+                  "flex flex-1 flex-col items-center gap-1 py-2.5 text-[10.5px] font-semibold transition-colors",
+                  isActive ? "text-royal" : "text-muted-foreground/70"
+                )
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <span
+                    className={cn(
+                      "flex h-7 items-center justify-center transition-transform",
+                      isActive && "scale-110"
+                    )}
+                  >
+                    {item.icon}
+                  </span>
+                  {item.label}
+                  <span
+                    className={cn(
+                      "h-1 w-1 rounded-full transition-opacity",
+                      isActive ? "bg-royal opacity-100" : "opacity-0"
+                    )}
+                  />
+                </>
+              )}
+            </NavLink>
           ) : (
-            <Navigate to="/aguardando-convite" replace />
+            <button
+              key={item.label}
+              onClick={item.onClick}
+              className={cn(
+                "flex flex-1 flex-col items-center gap-1 py-2.5 text-[10.5px] font-semibold transition-colors",
+                item.ativo ? "text-royal" : "text-muted-foreground/70"
+              )}
+            >
+              <span className="flex h-7 items-center justify-center">{item.icon}</span>
+              {item.label}
+              <span className="h-1 w-1 rounded-full opacity-0" />
+            </button>
           )
-        }
-      />
-      <Route
-        path="/aguardando-convite"
-        element={
-          !session ? (
-            <Navigate to="/login" replace />
-          ) : membresias.length > 0 ? (
-            <Navigate to="/" replace />
-          ) : ehMaster ? (
-            <Navigate to="/criar-grupo" replace />
-          ) : (
-            <AguardandoConvite />
-          )
-        }
-      />
-      <Route
-        path="/*"
-        element={
-          !session ? (
-            <Navigate to="/login" replace />
-          ) : membresias.length === 0 ? (
-            <Navigate to={ehMaster ? "/criar-grupo" : "/aguardando-convite"} replace />
-          ) : (
-            <AppLayout>
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/calendario" element={<Calendario />} />
-                <Route path="/orcamento" element={<Orcamento />} />
-                <Route path="/manutencao" element={<Manutencao />} />
-                <Route path="/diario" element={<Diario />} />
-                <Route path="/seguro" element={<Seguro />} />
-                <Route path="/informacoes" element={<Informacoes />} />
-                <Route path="/painel-gestor" element={<PainelGestor />} />
-                {ehAdmin && <Route path="/cotistas" element={<Cotistas />} />}
-                {ehAdmin && <Route path="/feriados" element={<Feriados />} />}
-              </Routes>
-            </AppLayout>
-          )
-        }
-      />
-    </Routes>
+        )}
+      </div>
+    </nav>
   );
 }

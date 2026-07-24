@@ -1,57 +1,31 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/contexts/AuthContext";
-import type { CategoriaInformacao } from "@/types/database.types";
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ToastProvider } from "@/contexts/ToastContext";
+import App from "./App.tsx";
+import "./index.css";
 
-export function useInformacoes() {
-  const { grupoAtual } = useAuth();
-  return useQuery({
-    queryKey: ["informacoes", grupoAtual?.id],
-    enabled: !!grupoAtual,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("informacoes_uteis")
-        .select("*")
-        .eq("grupo_id", grupoAtual!.id)
-        .order("categoria");
-      if (error) throw error;
-      return data ?? [];
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
     },
-  });
-}
+  },
+});
 
-export function useSalvarInformacao() {
-  const queryClient = useQueryClient();
-  const { grupoAtual, membroAtual } = useAuth();
-  return useMutation({
-    mutationFn: async (payload: {
-      categoria: CategoriaInformacao;
-      rotulo: string;
-      valor: string;
-      observacao?: string;
-    }) => {
-      const { error } = await supabase.from("informacoes_uteis").insert({
-        grupo_id: grupoAtual!.id,
-        categoria: payload.categoria,
-        rotulo: payload.rotulo,
-        valor: payload.valor,
-        observacao: payload.observacao || null,
-        autor_id: membroAtual!.id,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["informacoes", grupoAtual?.id] }),
-  });
-}
-
-export function useExcluirInformacao() {
-  const queryClient = useQueryClient();
-  const { grupoAtual } = useAuth();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("informacoes_uteis").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["informacoes", grupoAtual?.id] }),
-  });
-}
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <ToastProvider>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </ToastProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
+  </StrictMode>
+);

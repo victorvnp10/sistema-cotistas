@@ -1,132 +1,63 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/types/database.types";
 
-type Reserva = Database["public"]["Tables"]["reservas"]["Row"];
-type Membro = Database["public"]["Tables"]["grupo_membros"]["Row"];
-type Feriado = Database["public"]["Tables"]["feriados"]["Row"];
+type Periodo = Database["public"]["Tables"]["reservas"]["Row"]["periodo"];
 
-/** Sábado, domingo ou feriado cadastrado conta para a escala de prioridade. */
-export function contaParaEscala(dataISO: string, feriadosSet: Set<string>): boolean {
-  const dow = new Date(dataISO + "T12:00:00").getDay();
-  return dow === 0 || dow === 6 || feriadosSet.has(dataISO);
+export function useReservas() {
+  const { grupoAtual } = useAuth();
+  return useQuery({
+    queryKey: ["reservas", grupoAtual?.id],
+    enabled: !!grupoAtual,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("reservas")
+        .select("*")
+        .eq("grupo_id", grupoAtual!.id)
+        .order("data");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 }
 
-export function construirSetFeriados(feriados: Feriado[]): Set<string> {
-  return new Set(feriados.map((f) => f.data));
-}
+export function useCriarReserva() {
+  const queryClient = useQueryClient();
+  const { grupoAtual } = useAuth();
 
-export interface LinhaRanking {
-  membroId: string;
-  nome: string;
-  cotas: number;
-  utilizados: number;
-  agendados: number;
-  total: number;
-  totalGeral: number;
-  pontuacao: number;
-}
-
-/**
- * pontuacao = total_contavel / cotas -- ordenado ascendente (menor pontuação
- * = maior prioridade). Ver seção 7.2 da especificação técnica.
- */
-export function calcularRanking(
-  membros: Membro[],
-  reservas: Reserva[],
-  feriadosSet: Set<string>
-): LinhaRanking[] {
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
-
-  const linhas: LinhaRanking[] = [];
-
-  for (const membro of membros) {
-    if (!membro.ativo) continue;
-    let utilizados = 0;
-    let agendados = 0;
-    let totalGeral = 0;
-
-    for (const r of reservas) {
-      if (r.membro_id !== membro.id || r.status === "cancelado") continue;
-      totalGeral++;
-      if (contaParaEscala(r.data, feriadosSet)) {
-        const dataReserva = new Date(r.data + "T12:00:00");
-        if (dataReserva < hoje) utilizados++;
-        else agendados++;
+  return useMutation({
+    mutationFn: async (payload: { membroId: string; data: string; periodo: Periodo }) => {
+      const { error } = await supabase.from("reservas").insert({
+        grupo_id: grupoAtual!.id,
+        membro_id: payload.membroId,
+        data: payload.data,
+        periodo: payload.periodo,
+      });
+      if (error) {
+        // Violação do índice único de turno = alguém reservou primeiro
+        if (error.code === "23505") {
+          throw new Error("Esse turno acabou de ser reservado por outra pessoa.");
+        }
+        throw error;
       }
-    }
-
-    const total = utilizados + agendados;
-    const cotas = membro.cotas || 1;
-
-    linhas.push({
-      membroId: membro.id,
-      nome: membro.nome,
-      cotas,
-      utilizados,
-      agendados,
-      total,
-      totalGeral,
-      pontuacao: total / cotas,
-    });
-  }
-
-  linhas.sort((a, b) => a.pontuacao - b.pontuacao);
-  return linhas;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["reservas", grupoAtual?.id] }),
+  });
 }
 
-export interface ProximoDia {
-  data: string;
-  descricao: string;
-  reservaManha: Reserva | null;
-  reservaTarde: Reserva | null;
-}
+export function useCancelarReserva() {
+  const queryClient = useQueryClient();
+  const { grupoAtual } = useAuth();
 
-/** Próximos dias (até 60) que contam para a escala, com no máximo 10 resultados. */
-export function calcularProximosDias(
-  reservas: Reserva[],
-  feriados: Feriado[],
-  feriadosSet: Set<string>,
-  maxResultados = 10
-): ProximoDia[] {
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
-
-  const resultado: ProximoDia[] = [];
-
-  for (let offset = 0; offset <= 60 && resultado.length < maxResultados; offset++) {
-    const d = new Date(hoje);
-    d.setDate(hoje.getDate() + offset);
-    const dataISO = formatarDataISO(d);
-
-    if (!contaParaEscala(dataISO, feriadosSet)) continue;
-
-    const reservaManha =
-      reservas.find((r) => r.data === dataISO && r.periodo === "M" && r.status !== "cancelado") ??
-      null;
-    const reservaTarde =
-      reservas.find((r) => r.data === dataISO && r.periodo === "T" && r.status !== "cancelado") ??
-      null;
-
-    let descricao = "";
-    const dow = d.getDay();
-    if (dow === 0) descricao = "Domingo";
-    else if (dow === 6) descricao = "Sábado";
-    const feriado = feriados.find((f) => f.data === dataISO);
-    if (feriado) descricao = feriado.descricao;
-
-    resultado.push({ data: dataISO, descricao, reservaManha, reservaTarde });
-  }
-
-  return resultado;
-}
-
-export function formatarDataISO(d: Date): string {
-  const m = d.getMonth() + 1;
-  const day = d.getDate();
-  return `${d.getFullYear()}-${m < 10 ? "0" + m : m}-${day < 10 ? "0" + day : day}`;
-}
-
-export function formatarDataBR(iso: string): string {
-  const [ano, mes, dia] = iso.split("-");
-  return `${dia}/${mes}/${ano}`;
+  return useMutation({
+    mutationFn: async (reservaId: string) => {
+      const { error } = await supabase
+        .from("reservas")
+        .update({ status: "cancelado" })
+        .eq("id", reservaId);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["reservas", grupoAtual?.id] }),
+  });
 }

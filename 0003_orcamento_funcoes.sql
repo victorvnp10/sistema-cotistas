@@ -1,127 +1,280 @@
-import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Anchor, Mail, Lock } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
+import { useMembros } from "@/lib/queries/useMembros";
+import { useFeriados } from "@/lib/queries/useFeriados";
+import { useReservas, useCriarReserva, useCancelarReserva } from "@/lib/queries/useReservas";
+import { construirSetFeriados, contaParaEscala, formatarDataBR, formatarDataISO } from "@/lib/ranking";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
+import { Modal } from "@/components/ui/modal";
+import { Fab } from "@/components/ui/fab";
+import { Badge } from "@/components/ui/badge";
+import { ListItem } from "@/components/ui/list-item";
+import { EmptyState } from "@/components/ui/empty-state";
+import { cn } from "@/lib/utils";
+import type { Database } from "@/types/database.types";
 
-export default function Login() {
-  const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [modo, setModo] = useState<"entrar" | "cadastrar">("entrar");
-  const [carregando, setCarregando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-  const [avisoCadastro, setAvisoCadastro] = useState<string | null>(null);
+type Periodo = Database["public"]["Tables"]["reservas"]["Row"]["periodo"];
 
-  async function aoEnviar(e: FormEvent) {
-    e.preventDefault();
-    setErro(null);
-    setAvisoCadastro(null);
-    setCarregando(true);
+const MESES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+const DIAS_SEMANA = ["D", "S", "T", "Q", "Q", "S", "S"];
 
-    if (modo === "entrar") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
-      setCarregando(false);
-      if (error) {
-        setErro("E-mail ou senha incorretos.");
-        return;
-      }
-      navigate("/", { replace: true });
-    } else {
-      const { error } = await supabase.auth.signUp({ email, password: senha });
-      setCarregando(false);
-      if (error) {
-        setErro(error.message);
-        return;
-      }
-      setAvisoCadastro(
-        "Conta criada! Verifique seu e-mail para confirmar o cadastro e depois faça login."
-      );
-      setModo("entrar");
+export default function Calendario() {
+  const { membroAtual } = useAuth();
+  const hoje = new Date();
+  const [ano, setAno] = useState(hoje.getFullYear());
+  const [mes, setMes] = useState(hoje.getMonth());
+
+  const { data: membros } = useMembros();
+  const { data: feriados } = useFeriados();
+  const { data: reservas } = useReservas();
+  const [diaSelecionado, setDiaSelecionado] = useState<string | null>(null);
+  const [novaReservaAberta, setNovaReservaAberta] = useState(false);
+
+  const feriadosSet = useMemo(() => construirSetFeriados(feriados ?? []), [feriados]);
+
+  function mudarMes(delta: number) {
+    let novoMes = mes + delta;
+    let novoAno = ano;
+    if (novoMes < 0) { novoMes = 11; novoAno--; }
+    if (novoMes > 11) { novoMes = 0; novoAno++; }
+    setMes(novoMes);
+    setAno(novoAno);
+  }
+
+  const primeiroDiaSemana = new Date(ano, mes, 1).getDay();
+  const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+  const hojeISO = formatarDataISO(hoje);
+
+  function nomeMembro(id: string) {
+    return membros?.find((m) => m.id === id)?.nome ?? "?";
+  }
+
+  const minhasFuturas = (reservas ?? [])
+    .filter((r) => r.membro_id === membroAtual?.id && r.status !== "cancelado" && r.data >= hojeISO)
+    .sort((a, b) => (a.data < b.data ? -1 : 1));
+
+  return (
+    <div className="relative flex flex-col gap-4 pb-6">
+      <Card>
+        <div className="mb-4 flex items-center justify-between">
+          <button onClick={() => mudarMes(-1)} className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary hover:bg-accent">
+            <ChevronLeft size={18} />
+          </button>
+          <h2 className="text-[16px] font-extrabold tracking-tight">{MESES[mes]} {ano}</h2>
+          <button onClick={() => mudarMes(1)} className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary hover:bg-accent">
+            <ChevronRight size={18} />
+          </button>
+        </div>
+
+        <div className="mb-3 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+          <Legenda cor="bg-royal" texto="Manhã ocupada" />
+          <Legenda cor="bg-ocean" texto="Tarde ocupada" />
+          <Legenda cor="bg-success-soft" texto="Livre" />
+        </div>
+
+        <div className="grid grid-cols-7 gap-1.5">
+          {DIAS_SEMANA.map((d, i) => (
+            <div key={i} className="pb-1 text-center text-[11px] font-bold text-muted-foreground/70">{d}</div>
+          ))}
+          {Array.from({ length: primeiroDiaSemana }).map((_, i) => <div key={`vazio-${i}`} />)}
+          {Array.from({ length: ultimoDia }).map((_, i) => {
+            const dia = i + 1;
+            const dataISO = `${ano}-${String(mes + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+            const conta = contaParaEscala(dataISO, feriadosSet);
+            const resM = reservas?.find((r) => r.data === dataISO && r.periodo === "M" && r.status !== "cancelado");
+            const resT = reservas?.find((r) => r.data === dataISO && r.periodo === "T" && r.status !== "cancelado");
+
+            return (
+              <button
+                key={dataISO}
+                onClick={() => setDiaSelecionado(dataISO)}
+                className={cn(
+                  "flex min-h-[58px] flex-col rounded-xl border p-1 text-left transition-transform active:scale-95",
+                  conta ? "border-success/20 bg-success-soft/40" : "border-border/50 bg-white",
+                  dataISO === hojeISO && "ring-2 ring-royal ring-offset-1"
+                )}
+              >
+                <span className="mb-0.5 text-[11px] font-bold">{dia}</span>
+                <span className={cn("mb-0.5 truncate rounded-md px-1 py-0.5 text-[9px] font-bold text-white", resM ? "bg-royal" : "bg-transparent text-transparent")}>
+                  {resM ? nomeMembro(resM.membro_id) : "-"}
+                </span>
+                <span className={cn("truncate rounded-md px-1 py-0.5 text-[9px] font-bold text-white", resT ? "bg-ocean" : "bg-transparent text-transparent")}>
+                  {resT ? nomeMembro(resT.membro_id) : "-"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+
+      <Card>
+        <h2 className="mb-3 text-[15px] font-bold">Minhas reservas futuras</h2>
+        {!minhasFuturas.length ? (
+          <EmptyState titulo="Nenhuma reserva futura" descricao='Toque no "+" para reservar um turno.' />
+        ) : (
+          <div className="flex flex-col gap-2">
+            {minhasFuturas.map((r) => (
+              <ListItem
+                key={r.id}
+                title={`${formatarDataBR(r.data)} · ${r.periodo === "M" ? "Manhã" : "Tarde"}`}
+                subtitle={contaParaEscala(r.data, feriadosSet) ? "Conta para a escala" : undefined}
+                trailing={contaParaEscala(r.data, feriadosSet) && <Badge variant="success">Escala</Badge>}
+                onClick={() => setDiaSelecionado(r.data)}
+              />
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <Fab>
+        <Button variant="fab" size="fab" onClick={() => setNovaReservaAberta(true)} aria-label="Nova reserva">
+          <Plus size={26} />
+        </Button>
+      </Fab>
+
+      {diaSelecionado && <ModalDia dataISO={diaSelecionado} aoFechar={() => setDiaSelecionado(null)} />}
+      {novaReservaAberta && (
+        <ModalNovaReserva aoFechar={() => setNovaReservaAberta(false)} aoEscolherDia={(d) => { setNovaReservaAberta(false); setDiaSelecionado(d); }} />
+      )}
+    </div>
+  );
+}
+
+function Legenda({ cor, texto }: { cor: string; texto: string }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className={cn("h-2.5 w-2.5 rounded-full", cor)} />
+      {texto}
+    </span>
+  );
+}
+
+/** Sheet aberto pelo botão "+": escolher data/período rapidamente, sem precisar navegar o calendário até o mês certo. */
+function ModalNovaReserva({ aoFechar, aoEscolherDia }: { aoFechar: () => void; aoEscolherDia: (data: string) => void }) {
+  const { membroAtual } = useAuth();
+  const toast = useToast();
+  const criar = useCriarReserva();
+
+  const [data, setData] = useState(formatarDataISO(new Date()));
+  const [periodo, setPeriodo] = useState<Periodo>("M");
+
+  async function reservar() {
+    if (!data) { toast.erro("Selecione uma data."); return; }
+    try {
+      await criar.mutateAsync({ membroId: membroAtual!.id, data, periodo });
+      toast.sucesso("Reserva confirmada!");
+      aoFechar();
+    } catch (e) {
+      toast.erro(e instanceof Error ? e.message : "Erro ao reservar.");
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-petrol via-ocean to-royal p-5">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: "easeOut" }}
-        className="w-full max-w-sm"
-      >
-        <Card className="shadow-floating">
-          <CardContent className="flex flex-col items-center gap-6 py-2">
-            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-royal to-ocean text-white shadow-soft">
-              <Anchor size={26} />
-            </div>
-            <div className="text-center">
-              <h1 className="text-[22px] font-extrabold tracking-tight">Gestão de Cotistas</h1>
-              <p className="mt-1 text-[13px] text-muted-foreground">
-                {modo === "entrar" ? "Entre com sua conta" : "Crie sua conta"}
-              </p>
-            </div>
+    <Modal aberto aoFechar={aoFechar} titulo="Nova reserva">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
+          <Label>Data</Label>
+          <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Período</Label>
+          <select className="h-12 rounded-2xl border border-input bg-white px-4 text-[16px]" value={periodo} onChange={(e) => setPeriodo(e.target.value as Periodo)}>
+            <option value="M">Manhã</option>
+            <option value="T">Tarde</option>
+          </select>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex-1" onClick={() => aoEscolherDia(data)}>Ver dia no calendário</Button>
+          <Button className="flex-1" onClick={reservar} disabled={criar.isPending}>
+            {criar.isPending ? "Reservando..." : "Confirmar"}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
-            <form onSubmit={aoEnviar} className="flex w-full flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <Label>E-mail</Label>
-                <Input
-                  icon={<Mail size={17} />}
-                  type="email"
-                  autoComplete="username"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="seu@email.com"
-                />
+function ModalDia({ dataISO, aoFechar }: { dataISO: string; aoFechar: () => void }) {
+  const { membroAtual, ehAdmin } = useAuth();
+  const toast = useToast();
+  const { data: membros } = useMembros();
+  const { data: reservas } = useReservas();
+  const criar = useCriarReserva();
+  const cancelar = useCancelarReserva();
+
+  const [membroId, setMembroId] = useState(membroAtual?.id ?? "");
+  const [periodo, setPeriodo] = useState<Periodo>("M");
+
+  const resM = reservas?.find((r) => r.data === dataISO && r.periodo === "M" && r.status !== "cancelado");
+  const resT = reservas?.find((r) => r.data === dataISO && r.periodo === "T" && r.status !== "cancelado");
+
+  async function reservar() {
+    try {
+      await criar.mutateAsync({ membroId, data: dataISO, periodo });
+      toast.sucesso("Reserva confirmada!");
+      aoFechar();
+    } catch (e) {
+      toast.erro(e instanceof Error ? e.message : "Erro ao reservar.");
+    }
+  }
+
+  async function cancelarReserva(id: string) {
+    try {
+      await cancelar.mutateAsync(id);
+      toast.sucesso("Reserva cancelada.");
+      aoFechar();
+    } catch (e) {
+      toast.erro(e instanceof Error ? e.message : "Erro ao cancelar.");
+    }
+  }
+
+  const podeAlterar = (donoId: string) => donoId === membroAtual?.id || ehAdmin;
+
+  return (
+    <Modal aberto aoFechar={aoFechar} titulo={dataISO.split("-").reverse().join("/")}>
+      <div className="flex flex-col gap-3">
+        {[{ label: "Manhã", res: resM }, { label: "Tarde", res: resT }].map(({ label, res }) => (
+          <div key={label} className="flex items-center justify-between rounded-2xl bg-secondary/60 p-3.5">
+            <span className="text-[13.5px] font-semibold">{label}</span>
+            {res ? (
+              <div className="flex items-center gap-2">
+                <span className="text-[13.5px]">{membros?.find((m) => m.id === res.membro_id)?.nome}</span>
+                {podeAlterar(res.membro_id) && (
+                  <Button size="sm" variant="destructive" onClick={() => cancelarReserva(res.id)}>Cancelar</Button>
+                )}
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Senha</Label>
-                <Input
-                  icon={<Lock size={17} />}
-                  type="password"
-                  autoComplete={modo === "entrar" ? "current-password" : "new-password"}
-                  required
-                  minLength={6}
-                  value={senha}
-                  onChange={(e) => setSenha(e.target.value)}
-                  placeholder="••••••••"
-                />
-              </div>
+            ) : (
+              <span className="text-[13px] text-success">Livre</span>
+            )}
+          </div>
+        ))}
 
-              {erro && (
-                <p className="rounded-xl bg-destructive/10 px-3 py-2 text-[13px] font-medium text-destructive">
-                  {erro}
-                </p>
-              )}
-              {avisoCadastro && (
-                <p className="rounded-xl bg-success-soft px-3 py-2 text-[13px] font-medium text-success">
-                  {avisoCadastro}
-                </p>
-              )}
-
-              <Button type="submit" size="lg" className="w-full" disabled={carregando}>
-                {carregando ? "Aguarde..." : modo === "entrar" ? "Entrar" : "Criar conta"}
-              </Button>
-
-              <button
-                type="button"
-                className="text-[13px] font-semibold text-muted-foreground hover:text-royal"
-                onClick={() => {
-                  setErro(null);
-                  setAvisoCadastro(null);
-                  setModo(modo === "entrar" ? "cadastrar" : "entrar");
-                }}
-              >
-                {modo === "entrar" ? "Ainda não tem conta? Cadastre-se" : "Já tem conta? Entrar"}
-              </button>
-            </form>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </div>
+        {(!resM || !resT) && (
+          <div className="flex flex-col gap-3 border-t border-border/60 pt-4">
+            <p className="text-[13.5px] font-bold">Fazer nova reserva</p>
+            {ehAdmin && (
+              <select className="h-12 rounded-2xl border border-input bg-white px-4 text-[16px]" value={membroId} onChange={(e) => setMembroId(e.target.value)}>
+                {membros?.filter((m) => m.ativo).map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+              </select>
+            )}
+            <select className="h-12 rounded-2xl border border-input bg-white px-4 text-[16px]" value={periodo} onChange={(e) => setPeriodo(e.target.value as Periodo)}>
+              {!resM && <option value="M">Manhã</option>}
+              {!resT && <option value="T">Tarde</option>}
+            </select>
+            <Button size="lg" onClick={reservar} disabled={criar.isPending}>
+              {criar.isPending ? "Reservando..." : "Confirmar reserva"}
+            </Button>
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }

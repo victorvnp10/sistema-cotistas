@@ -1,27 +1,51 @@
 import { type ReactNode } from "react";
-import { Inbox } from "lucide-react";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
-export function EmptyState({
-  icon,
+export function StatCard({
   titulo,
-  descricao,
-  acao,
+  valor,
+  sub,
+  icon,
+  onClick,
+  destaque,
+  className,
 }: {
-  icon?: ReactNode;
   titulo: string;
-  descricao?: string;
-  acao?: ReactNode;
+  valor: string;
+  sub?: string;
+  icon?: ReactNode;
+  onClick?: () => void;
+  destaque?: boolean;
+  className?: string;
 }) {
+  const Comp = onClick ? motion.button : motion.div;
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl bg-secondary/50 px-6 py-10 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-muted-foreground/60 shadow-softer">
-        {icon ?? <Inbox size={22} />}
+    <Comp
+      onClick={onClick}
+      whileHover={onClick ? { y: -2 } : undefined}
+      whileTap={onClick ? { scale: 0.98 } : undefined}
+      className={cn(
+        "flex flex-col gap-3 rounded-3xl p-5 text-left shadow-soft border border-border/60 transition-shadow",
+        destaque ? "bg-gradient-to-br from-royal to-ocean text-white border-0" : "bg-white",
+        onClick && "cursor-pointer hover:shadow-floating/40",
+        className
+      )}
+    >
+      <div className="flex items-center justify-between">
+        <span className={cn("text-[11px] font-bold uppercase tracking-wide", destaque ? "text-white/80" : "text-muted-foreground")}>
+          {titulo}
+        </span>
+        {icon && <span className={destaque ? "text-white/80" : "text-royal/70"}>{icon}</span>}
       </div>
       <div>
-        <p className="text-[14.5px] font-semibold text-foreground">{titulo}</p>
-        {descricao && <p className="mt-0.5 text-[13px] text-muted-foreground">{descricao}</p>}
+        <p className={cn("text-[26px] font-extrabold leading-none tracking-tight", destaque ? "text-white" : "text-foreground")}>
+          {valor}
+        </p>
+        {sub && (
+          <p className={cn("mt-1.5 text-[12px] leading-snug", destaque ? "text-white/75" : "text-muted-foreground")}>{sub}</p>
+        )}
       </div>
-      {acao}
-    </div>
+    </Comp>
   );
 }

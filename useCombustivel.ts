@@ -1,124 +1,142 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
-import type { Session } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
-import type { Database, Papel } from "@/types/database.types";
+import type { Database } from "@/types/database.types";
 
-type Grupo = Database["public"]["Tables"]["grupos"]["Row"];
+type Reserva = Database["public"]["Tables"]["reservas"]["Row"];
 type Membro = Database["public"]["Tables"]["grupo_membros"]["Row"];
+type Feriado = Database["public"]["Tables"]["feriados"]["Row"];
 
-interface AuthContextValue {
-  carregando: boolean;
-  session: Session | null;
-  /** Grupo(s) a que o usuário logado pertence, com seu papel/cotas em cada um */
-  membresias: (Membro & { grupo: Grupo })[];
-  /** Grupo atualmente selecionado (normalmente o único, na maioria dos casos de uso) */
-  grupoAtual: Grupo | null;
-  membroAtual: Membro | null;
-  selecionarGrupo: (grupoId: string) => void;
-  podeGerenciarOrcamento: boolean;
-  ehAdmin: boolean;
-  recarregarMembresias: () => Promise<void>;
-  sair: () => Promise<void>;
+/** Sábado, domingo ou feriado cadastrado conta para a escala de prioridade. */
+export function contaParaEscala(dataISO: string, feriadosSet: Set<string>): boolean {
+  const dow = new Date(dataISO + "T12:00:00").getDay();
+  return dow === 0 || dow === 6 || feriadosSet.has(dataISO);
 }
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+export function construirSetFeriados(feriados: Feriado[]): Set<string> {
+  return new Set(feriados.map((f) => f.data));
+}
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [carregando, setCarregando] = useState(true);
-  const [session, setSession] = useState<Session | null>(null);
-  const [membresias, setMembresias] = useState<(Membro & { grupo: Grupo })[]>([]);
-  const [grupoIdSelecionado, setGrupoIdSelecionado] = useState<string | null>(
-    () => localStorage.getItem("grupoIdSelecionado")
-  );
+export interface LinhaRanking {
+  membroId: string;
+  nome: string;
+  cotas: number;
+  utilizados: number;
+  agendados: number;
+  total: number;
+  totalGeral: number;
+  pontuacao: number;
+}
 
-  async function carregarMembresias() {
-    const { data, error } = await supabase
-      .from("grupo_membros")
-      .select("*, grupo:grupos(*)")
-      .eq("ativo", true);
+/**
+ * pontuacao = total_contavel / cotas -- ordenado ascendente (menor pontuação
+ * = maior prioridade). Ver seção 7.2 da especificação técnica.
+ */
+export function calcularRanking(
+  membros: Membro[],
+  reservas: Reserva[],
+  feriadosSet: Set<string>
+): LinhaRanking[] {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
 
-    if (error) {
-      console.error("Erro ao carregar grupos do usuário:", error.message);
-      setMembresias([]);
-      return;
+  const linhas: LinhaRanking[] = [];
+
+  for (const membro of membros) {
+    if (!membro.ativo) continue;
+    let utilizados = 0;
+    let agendados = 0;
+    let totalGeral = 0;
+
+    for (const r of reservas) {
+      if (r.membro_id !== membro.id || r.status === "cancelado") continue;
+      totalGeral++;
+      if (contaParaEscala(r.data, feriadosSet)) {
+        const dataReserva = new Date(r.data + "T12:00:00");
+        if (dataReserva < hoje) utilizados++;
+        else agendados++;
+      }
     }
-    setMembresias((data ?? []) as unknown as (Membro & { grupo: Grupo })[]);
-  }
 
-  useEffect(() => {
-    let ativo = true;
+    const total = utilizados + agendados;
+    const cotas = membro.cotas || 1;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!ativo) return;
-      setSession(data.session);
-      setCarregando(false);
+    linhas.push({
+      membroId: membro.id,
+      nome: membro.nome,
+      cotas,
+      utilizados,
+      agendados,
+      total,
+      totalGeral,
+      pontuacao: total / cotas,
     });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, novaSession) => {
-      setSession(novaSession);
-    });
-
-    return () => {
-      ativo = false;
-      listener.subscription.unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (session) {
-      carregarMembresias();
-    } else {
-      setMembresias([]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]);
-
-  const membroAtual =
-    membresias.find((m) => m.grupo_id === grupoIdSelecionado) ??
-    membresias[0] ??
-    null;
-  const grupoAtual = membroAtual?.grupo ?? null;
-
-  function selecionarGrupo(grupoId: string) {
-    localStorage.setItem("grupoIdSelecionado", grupoId);
-    setGrupoIdSelecionado(grupoId);
   }
 
-  async function sair() {
-    await supabase.auth.signOut();
-    localStorage.removeItem("grupoIdSelecionado");
-  }
-
-  const ehAdmin = membroAtual?.role === "admin";
-  const podeGerenciarOrcamento: boolean =
-    membroAtual?.role === "admin" || membroAtual?.role === "gestor";
-
-  const value: AuthContextValue = {
-    carregando,
-    session,
-    membresias,
-    grupoAtual,
-    membroAtual,
-    selecionarGrupo,
-    podeGerenciarOrcamento,
-    ehAdmin,
-    recarregarMembresias: carregarMembresias,
-    sair,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  linhas.sort((a, b) => a.pontuacao - b.pontuacao);
+  return linhas;
 }
 
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth precisa estar dentro de <AuthProvider>");
-  return ctx;
+export interface ProximoDia {
+  data: string;
+  descricao: string;
+  manhaLivre: boolean;
+  tardeLivre: boolean;
 }
 
-export type { Papel };
+/**
+ * Próximos dias (até 60) que contam para a escala, com no máximo 10 resultados.
+ * Só retorna dias que tenham pelo menos um período (manhã ou tarde) livre --
+ * dias totalmente reservados não aparecem, já que o card é só pra divulgar
+ * o que ainda está disponível.
+ */
+export function calcularProximosDias(
+  reservas: Reserva[],
+  feriados: Feriado[],
+  feriadosSet: Set<string>,
+  maxResultados = 10
+): ProximoDia[] {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  const resultado: ProximoDia[] = [];
+
+  for (let offset = 0; offset <= 90 && resultado.length < maxResultados; offset++) {
+    const d = new Date(hoje);
+    d.setDate(hoje.getDate() + offset);
+    const dataISO = formatarDataISO(d);
+
+    if (!contaParaEscala(dataISO, feriadosSet)) continue;
+
+    const reservaManha = reservas.find(
+      (r) => r.data === dataISO && r.periodo === "M" && r.status !== "cancelado"
+    );
+    const reservaTarde = reservas.find(
+      (r) => r.data === dataISO && r.periodo === "T" && r.status !== "cancelado"
+    );
+
+    const manhaLivre = !reservaManha;
+    const tardeLivre = !reservaTarde;
+
+    if (!manhaLivre && !tardeLivre) continue; // dia totalmente reservado, não mostra
+
+    let descricao = "";
+    const dow = d.getDay();
+    if (dow === 0) descricao = "Domingo";
+    else if (dow === 6) descricao = "Sábado";
+    const feriado = feriados.find((f) => f.data === dataISO);
+    if (feriado) descricao = feriado.descricao;
+
+    resultado.push({ data: dataISO, descricao, manhaLivre, tardeLivre });
+  }
+
+  return resultado;
+}
+
+export function formatarDataISO(d: Date): string {
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  return `${d.getFullYear()}-${m < 10 ? "0" + m : m}-${day < 10 ? "0" + day : day}`;
+}
+
+export function formatarDataBR(iso: string): string {
+  const [ano, mes, dia] = iso.split("-");
+  return `${dia}/${mes}/${ano}`;
+}

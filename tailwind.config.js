@@ -1,30 +1,76 @@
--- ════════════════════════════════════════════════════════════
--- MIGRAÇÃO 0002 — Convite de cotistas por e-mail
--- Cole no SQL Editor do Supabase (depois de já ter rodado a 0001) e clique
--- em "Run". Sem isso, o Admin não consegue convidar novos cotistas.
--- ════════════════════════════════════════════════════════════
-
--- Permite um registro de "convite pendente": o Admin cadastra o cotista
--- pelo e-mail antes de existir uma conta de login correspondente.
-alter table grupo_membros alter column user_id drop not null;
-
--- Quando a pessoa convidada cria a própria conta (mesmo e-mail do convite),
--- este gatilho conecta automaticamente o login dela ao registro de cotista
--- que o Admin já tinha criado -- ela não precisa fazer mais nada.
-create or replace function vincular_convite_pendente() returns trigger
-language plpgsql security definer
-set search_path = public
-as $$
-begin
-  update public.grupo_membros
-     set user_id = new.id
-   where email = new.email
-     and user_id is null;
-  return new;
-end;
-$$;
-
-drop trigger if exists ao_criar_conta_vincular_convite on auth.users;
-create trigger ao_criar_conta_vincular_convite
-  after insert on auth.users
-  for each row execute function vincular_convite_pendente();
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: ["class"],
+  content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  theme: {
+    container: {
+      center: true,
+      padding: "1rem",
+    },
+    extend: {
+      fontFamily: {
+        sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+      },
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+          soft: "hsl(var(--success-soft))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          soft: "hsl(var(--warning-soft))",
+        },
+        petrol: "hsl(var(--petrol))",
+        ocean: "hsl(var(--ocean))",
+        royal: "hsl(var(--royal))",
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        xl: "1.25rem",
+        "2xl": "1.5rem",
+        "3xl": "1.75rem",
+        md: "calc(var(--radius) - 4px)",
+        sm: "calc(var(--radius) - 8px)",
+      },
+      boxShadow: {
+        soft: "0 1px 2px rgba(15, 30, 60, 0.04), 0 8px 24px -8px rgba(15, 30, 60, 0.10)",
+        softer: "0 1px 2px rgba(15, 30, 60, 0.03), 0 4px 12px -4px rgba(15, 30, 60, 0.06)",
+        floating: "0 12px 32px -8px rgba(37, 60, 235, 0.35)",
+      },
+      spacing: {
+        4.5: "1.125rem",
+      },
+    },
+  },
+  plugins: [],
+};

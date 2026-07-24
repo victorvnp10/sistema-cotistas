@@ -1,396 +1,144 @@
--- ════════════════════════════════════════════════════════════
--- SCHEMA INICIAL — Sistema de Gestão de Cotistas
--- Cole este arquivo inteiro no SQL Editor do Supabase e clique em "Run".
--- Pode ser executado em um projeto novo, do zero.
--- ════════════════════════════════════════════════════════════
+# Sistema de Gestão de Cotistas — Versão Web
 
-create extension if not exists "pgcrypto";
+## Status atual: Fase 4 concluída (Seguro, Informações Úteis, Painel do Gestor)
 
--- ────────────────────────────────────────────────────────────
--- GRUPOS (multi-tenant: cada grupo de cotistas é isolado dos demais)
--- ────────────────────────────────────────────────────────────
-create table grupos (
-  id uuid primary key default gen_random_uuid(),
-  nome text not null,
-  nome_recurso text not null default 'Embarcação',
-  termo_cota text not null default 'cota',
-  dia_virada int not null default 4 check (dia_virada between 1 and 28),
-  moeda text not null default 'BRL',
-  timezone text not null default 'America/Sao_Paulo',
-  logo_url text,
-  criado_em timestamptz not null default now()
-);
+✅ Login, criação de grupo, convite de cotistas
+✅ Calendário, reservas, ranking de prioridade
+✅ Orçamento completo (lançamentos, recorrentes, mensalidade automática,
+   proteção contra caixa negativo)
+✅ Diário de Bordo, custo de combustível, manutenções (data e horímetro)
+✅ Seguro obrigatório: apólice atual, renovação (com lançamento automático
+   de despesa opcional), histórico
+✅ Informações Úteis: contatos, documentos, senhas/acesso, procedimentos
+✅ Painel do Gestor: relatórios mensais/anuais de uso e financeiro,
+   discriminado de receitas/despesas (com itens "previstos"), status do
+   seguro e da próxima manutenção, relatórios de uso pendentes, com botão
+   de impressão em A4
+⬜ Polimento final (ver seção "Próximos passos" abaixo)
 
--- ────────────────────────────────────────────────────────────
--- MEMBROS DO GRUPO (= "Cotistas")
--- ────────────────────────────────────────────────────────────
-create table grupo_membros (
-  id uuid primary key default gen_random_uuid(),
-  grupo_id uuid not null references grupos(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
-  nome text not null,
-  email text not null,
-  telefone text,
-  role text not null default 'cotista' check (role in ('admin','gestor','cotista')),
-  cotas numeric(6,2) not null default 1 check (cotas > 0),
-  ativo boolean not null default true,
-  criado_em timestamptz not null default now(),
-  unique (grupo_id, user_id)
-);
+## Antes de usar: rode mais um arquivo SQL
 
--- ────────────────────────────────────────────────────────────
--- FERIADOS
--- ────────────────────────────────────────────────────────────
-create table feriados (
-  id uuid primary key default gen_random_uuid(),
-  grupo_id uuid not null references grupos(id) on delete cascade,
-  data date not null,
-  descricao text not null,
-  unique (grupo_id, data)
-);
+Cole `supabase/migrations/0006_seguro_painel_gestor.sql` no SQL Editor do
+Supabase (depois dos 5 anteriores) e clique em Run.
 
--- ────────────────────────────────────────────────────────────
--- RESERVAS
--- ────────────────────────────────────────────────────────────
-create table reservas (
-  id uuid primary key default gen_random_uuid(),
-  grupo_id uuid not null references grupos(id) on delete cascade,
-  membro_id uuid not null references grupo_membros(id) on delete cascade,
-  data date not null,
-  periodo text not null check (periodo in ('M','T')),
-  status text not null default 'confirmado' check (status in ('confirmado','cancelado')),
-  criado_em timestamptz not null default now()
-);
-create unique index reservas_turno_unico
-  on reservas (grupo_id, data, periodo)
-  where status = 'confirmado';
+## Como funciona a impressão do Painel do Gestor
 
--- ────────────────────────────────────────────────────────────
--- RECORRENTES (mensalidades / despesas fixas recorrentes) + histórico
--- ────────────────────────────────────────────────────────────
-create table recorrentes (
-  id uuid primary key default gen_random_uuid(),
-  grupo_id uuid not null references grupos(id) on delete cascade,
-  tipo text not null check (tipo in ('receita','despesa')),
-  descricao text not null,
-  valor_atual numeric(12,2) not null check (valor_atual >= 0),
-  dia_cobranca int not null check (dia_cobranca between 1 and 31),
-  ativo boolean not null default true,
-  data_inicio date,
-  data_fim date,
-  subtipo text,
-  criado_em timestamptz not null default now(),
-  atualizado_em timestamptz not null default now()
-);
+Clique em "🖨️ Imprimir relatório (A4)" na tela do Painel do Gestor — o
+navegador abre a caixa de impressão nativa (a mesma usada para "Salvar como
+PDF"), já sem o cabeçalho/menu do app, formatado para papel A4. É a mesma
+abordagem do sistema antigo: zero configuração extra, funciona em
+qualquer navegador.
 
-create table recorrentes_historico (
-  id uuid primary key default gen_random_uuid(),
-  recorrente_id uuid not null references recorrentes(id) on delete cascade,
-  valor_anterior numeric(12,2) not null,
-  valor_novo numeric(12,2) not null,
-  alterado_por uuid references grupo_membros(id),
-  vigencia_inicio date not null,
-  vigencia_fim date,
-  criado_em timestamptz not null default now()
-);
+## O sistema agora está funcionalmente completo
 
--- ────────────────────────────────────────────────────────────
--- LANÇAMENTOS (receitas/despesas eventuais + geradas automaticamente)
--- ────────────────────────────────────────────────────────────
-create table lancamentos (
-  id uuid primary key default gen_random_uuid(),
-  grupo_id uuid not null references grupos(id) on delete cascade,
-  tipo text not null check (tipo in ('receita','despesa')),
-  descricao text not null,
-  valor numeric(12,2) not null check (valor >= 0),
-  valor_por_cota numeric(12,2),
-  data date not null,
-  lancado_por uuid references grupo_membros(id),
-  origem text not null default 'manual'
-    check (origem in ('manual','caixa_inicial','ajuste_caixa','recorrente','manutencao_horas','seguro')),
-  origem_ref_id uuid,
-  observacao text,
-  criado_em timestamptz not null default now()
-);
-create index lancamentos_grupo_data_idx on lancamentos (grupo_id, data);
-create index lancamentos_origem_idx on lancamentos (grupo_id, origem, origem_ref_id, data);
+Todas as telas e regras de negócio do sistema original em Google Apps
+Script foram reconstruídas:
 
--- ────────────────────────────────────────────────────────────
--- CONFIRMAÇÕES DE PAGAMENTO
--- ────────────────────────────────────────────────────────────
-create table confirmacoes_pagamento (
-  id uuid primary key default gen_random_uuid(),
-  recorrente_id uuid not null references recorrentes(id) on delete cascade,
-  membro_id uuid not null references grupo_membros(id) on delete cascade,
-  mes_referencia char(7) not null,
-  confirmado boolean not null default false,
-  data_confirmacao date,
-  confirmado_por uuid references grupo_membros(id),
-  unique (recorrente_id, membro_id, mes_referencia)
-);
+| Módulo | Status |
+|---|---|
+| Cotistas e cotas | ✅ |
+| Reservas e ranking de prioridade | ✅ |
+| Feriados | ✅ |
+| Orçamento (lançamentos, recorrentes, mensalidade, caixa) | ✅ |
+| Diário de Bordo (horímetro) | ✅ |
+| Custo variável de combustível | ✅ |
+| Manutenções (data e horímetro) | ✅ |
+| Seguro obrigatório | ✅ |
+| Informações úteis | ✅ |
+| Painel do Gestor + impressão A4 | ✅ |
 
--- ────────────────────────────────────────────────────────────
--- CUSTO VARIÁVEL DE COMBUSTÍVEL/ÓLEO (vigências)
--- ────────────────────────────────────────────────────────────
-create table historico_custo_combustivel (
-  id uuid primary key default gen_random_uuid(),
-  grupo_id uuid not null references grupos(id) on delete cascade,
-  consumo_por_hora numeric(8,3) not null,
-  custo_unidade numeric(10,2) not null,
-  unidades numeric(8,2) not null,
-  custo_por_hora numeric(10,4) generated always as
-    (case when unidades > 0 then (custo_unidade / unidades) * consumo_por_hora else 0 end) stored,
-  vigencia_inicio date not null,
-  vigencia_fim date,
-  alterado_por uuid references grupo_membros(id),
-  criado_em timestamptz not null default now()
-);
+## Próximos passos (polimento, não obrigatório para usar o sistema)
 
--- ────────────────────────────────────────────────────────────
--- DIÁRIO DE BORDO
--- ────────────────────────────────────────────────────────────
-create table diario_bordo (
-  id uuid primary key default gen_random_uuid(),
-  grupo_id uuid not null references grupos(id) on delete cascade,
-  autor_id uuid not null references grupo_membros(id),
-  titulo text not null,
-  relato text not null,
-  prioridade text not null default 'normal' check (prioridade in ('normal','atencao','urgente')),
-  resolvido boolean not null default false,
-  data_resolucao date,
-  resolvido_por uuid references grupo_membros(id),
-  horimetro_inicio numeric(10,1) not null default 0,
-  horimetro_fim numeric(10,1) not null default 0,
-  tempo_uso numeric(10,1) generated always as
-    (case when horimetro_fim > 0 and horimetro_fim >= horimetro_inicio
-          then horimetro_fim - horimetro_inicio else 0 end) stored,
-  diferenca_anterior numeric(10,1) default 0,
-  observacoes text,
-  data_uso_reportado date,
-  criado_em timestamptz not null default now()
-);
-create index diario_autor_idx on diario_bordo (grupo_id, autor_id);
+- Publicar o app na internet com um link público (GitHub + Vercel — te
+  aviso quando chegarmos nessa etapa)
+- Ícones/logo próprios do PWA (hoje usa um ícone genérico)
+- Ajustes finos de UX conforme o uso real do grupo
 
--- ────────────────────────────────────────────────────────────
--- MANUTENÇÕES + RATEIO
--- ────────────────────────────────────────────────────────────
-create table manutencoes (
-  id uuid primary key default gen_random_uuid(),
-  grupo_id uuid not null references grupos(id) on delete cascade,
-  descricao text not null,
-  periodicidade text,
-  tipo_gatilho text not null default 'data' check (tipo_gatilho in ('data','horas')),
-  proxima_data date,
-  intervalo_horas numeric(10,1),
-  horimetro_base numeric(10,1) not null default 0,
-  custo_previsto numeric(12,2) default 0,
-  custo_real numeric(12,2) default 0,
-  feito boolean not null default false,
-  data_execucao date,
-  feito_por uuid references grupo_membros(id),
-  observacao text,
-  criado_em timestamptz not null default now()
-);
+## Passos de configuração (iguais às fases anteriores)
 
-create table rateio_manutencao (
-  id uuid primary key default gen_random_uuid(),
-  manutencao_id uuid not null references manutencoes(id) on delete cascade,
-  descricao text not null,
-  membro_id uuid not null references grupo_membros(id),
-  horas numeric(10,1) not null default 0,
-  valor numeric(12,2) not null,
-  data date not null,
-  confirmado boolean not null default false,
-  data_confirmacao date
-);
+1. Rode os 6 arquivos de `supabase/migrations/` no SQL Editor do Supabase, em ordem.
+2. Copie `.env.example` para `.env` e preencha com a Project URL e a anon
+   public key.
+3. `npm install` e `npm run dev`.
 
--- ────────────────────────────────────────────────────────────
--- SEGURO
--- ────────────────────────────────────────────────────────────
-create table seguros (
-  id uuid primary key default gen_random_uuid(),
-  grupo_id uuid not null references grupos(id) on delete cascade,
-  apolice text not null,
-  seguradora text,
-  data_inicio date not null,
-  valor numeric(12,2) not null default 0,
-  data_vencimento date not null,
-  renovado_por uuid references grupo_membros(id),
-  observacao text,
-  criado_em timestamptz not null default now()
-);
+## Reformulação visual (design system premium)
 
--- ────────────────────────────────────────────────────────────
--- INFORMAÇÕES ÚTEIS
--- ────────────────────────────────────────────────────────────
-create table informacoes_uteis (
-  id uuid primary key default gen_random_uuid(),
-  grupo_id uuid not null references grupos(id) on delete cascade,
-  categoria text not null check (categoria in ('Contato','Documento','Senha_Acesso','Procedimento','Outro')),
-  rotulo text not null,
-  valor text not null,
-  observacao text,
-  autor_id uuid references grupo_membros(id),
-  criado_em timestamptz not null default now()
-);
+O layout inteiro foi reconstruído seguindo um briefing de design específico
+(estilo Stripe/Linear/Notion/Revolut), **sem alterar nenhuma regra de
+negócio, hook ou chamada ao banco** — só a camada visual.
 
--- ════════════════════════════════════════════════════════════
--- ROW LEVEL SECURITY
--- ════════════════════════════════════════════════════════════
+O que mudou:
+- Paleta: branco, cinza claro, azul petróleo, azul oceano, azul royal
+  (destaque), verde (sucesso) e vermelho (alerta) apenas em estados
+- Tipografia Inter, cantos arredondados (16–24px), sombras muito suaves
+- Navegação mudou de abas no topo para **Bottom Navigation** (padrão de
+  apps modernos): Início, Agenda, Reservar, Orçamento e "Mais" (que abre
+  um menu com as demais telas — Manutenção, Diário, Seguro, Informações,
+  Painel do Gestor, Cotistas, Feriados — e o botão Sair)
+- Modais viraram **Bottom Sheets** (deslizam de baixo, com fundo
+  desfocado), com animações suaves via Framer Motion
+- Novos componentes reutilizáveis: StatCard, ListItem, Badge, Avatar,
+  EmptyState, SegmentedControl, LoadingSkeleton
 
--- Função auxiliar: o usuário logado é membro ativo deste grupo?
-create or replace function eh_membro_ativo(p_grupo_id uuid) returns boolean
-language sql security definer stable as $$
-  select exists (
-    select 1 from grupo_membros
-    where grupo_id = p_grupo_id and user_id = auth.uid() and ativo
-  );
-$$;
+Nada de funcionalidade mudou: os mesmos dados, os mesmos cálculos, as
+mesmas permissões — só a aparência.
 
--- O usuário logado é admin OU gestor deste grupo?
-create or replace function eh_gestor_ou_admin(p_grupo_id uuid) returns boolean
-language sql security definer stable as $$
-  select exists (
-    select 1 from grupo_membros
-    where grupo_id = p_grupo_id and user_id = auth.uid() and ativo
-      and role in ('admin','gestor')
-  );
-$$;
+## Mudanças de fluxo e funcionalidade (nova rodada)
 
--- O usuário logado é admin deste grupo?
-create or replace function eh_admin(p_grupo_id uuid) returns boolean
-language sql security definer stable as $$
-  select exists (
-    select 1 from grupo_membros
-    where grupo_id = p_grupo_id and user_id = auth.uid() and ativo and role = 'admin'
-  );
-$$;
+### Reservar foi incorporado à Agenda
+A tela "Reservar" separada foi removida. Agora dá pra reservar direto na
+tela **Agenda/Calendário**: clique em um dia para ver/reservar aquele dia
+específico, ou toque no botão flutuante **"+"** no canto inferior direito
+para reservar rapidamente sem precisar navegar até o mês certo. A lista
+"Minhas reservas futuras" também está lá.
 
-alter table grupos enable row level security;
-alter table grupo_membros enable row level security;
-alter table feriados enable row level security;
-alter table reservas enable row level security;
-alter table recorrentes enable row level security;
-alter table recorrentes_historico enable row level security;
-alter table lancamentos enable row level security;
-alter table confirmacoes_pagamento enable row level security;
-alter table historico_custo_combustivel enable row level security;
-alter table diario_bordo enable row level security;
-alter table manutencoes enable row level security;
-alter table rateio_manutencao enable row level security;
-alter table seguros enable row level security;
-alter table informacoes_uteis enable row level security;
+O menu inferior agora mostra **Diário de Bordo** no lugar de "Reservar" —
+já que toda vez que alguém usa a embarcação precisa preencher um relatório
+de uso lá.
 
--- GRUPOS
-create policy "usuario autenticado pode criar grupo"
-  on grupos for insert with check (auth.uid() is not null);
-create policy "membros leem seu grupo"
-  on grupos for select using (eh_membro_ativo(id));
-create policy "admin atualiza config do grupo"
-  on grupos for update using (eh_admin(id));
+### Informações Úteis mais espertas
+- Documentos do Google Drive e vídeos do YouTube abrem em uma **visualização
+  rápida** (sem sair do app)
+- Links comuns abrem direto em nova aba com um toque
+- Contatos, PIX e senhas são **copiados automaticamente** ao tocar
+- Excluir agora pede **confirmação dupla** (evita exclusão acidental)
 
--- GRUPO_MEMBROS
-create policy "fundador vira admin do grupo recem-criado"
-  on grupo_membros for insert with check (
-    user_id = auth.uid() and role = 'admin'
-    and not exists (select 1 from grupo_membros gm2 where gm2.grupo_id = grupo_membros.grupo_id)
-  );
-create policy "admin adiciona membros"
-  on grupo_membros for insert with check (eh_admin(grupo_id));
-create policy "membros leem colegas do grupo"
-  on grupo_membros for select using (eh_membro_ativo(grupo_id));
-create policy "admin edita membros"
-  on grupo_membros for update using (eh_admin(grupo_id));
+### Controle de quem pode criar novos grupos (IMPORTANTE)
+Agora **só o e-mail `victornogueirapinto@gmail.com`** pode criar um novo
+grupo no sistema — essa regra está no banco de dados (não só escondida na
+tela), então ninguém consegue burlar isso mesmo mexendo no código do
+navegador.
 
--- FERIADOS
-create policy "membros leem feriados" on feriados for select using (eh_membro_ativo(grupo_id));
-create policy "admin gerencia feriados" on feriados for insert with check (eh_admin(grupo_id));
-create policy "admin atualiza feriados" on feriados for update using (eh_admin(grupo_id));
-create policy "admin exclui feriados" on feriados for delete using (eh_admin(grupo_id));
+Fluxo de venda para um novo cliente/gestor:
+1. Você (master) faz login e cria um novo grupo, informando **nome e
+   e-mail do administrador** (o gestor responsável por aquele grupo).
+2. Esse gestor recebe, na prática, um convite (mesmo mecanismo de
+   convidar cotistas): ele cria a própria conta com aquele e-mail e já
+   entra como Admin do grupo dele.
+3. A partir daí, ele mesmo cadastra os cotistas do grupo dele — sem
+   precisar de você.
 
--- RESERVAS
-create policy "membros leem reservas" on reservas for select using (eh_membro_ativo(grupo_id));
-create policy "membros criam reservas" on reservas for insert with check (eh_membro_ativo(grupo_id));
-create policy "dono ou gestor cancela reserva" on reservas for update using (
-  eh_membro_ativo(grupo_id) and (
-    membro_id in (select id from grupo_membros where user_id = auth.uid())
-    or eh_gestor_ou_admin(grupo_id)
-  )
-);
+Qualquer outra pessoa que criar conta sem ter sido convidada por ninguém
+cai numa tela de **"Aguardando convite"**, sem conseguir criar grupo
+nenhum.
 
--- RECORRENTES
-create policy "membros leem recorrentes" on recorrentes for select using (eh_membro_ativo(grupo_id));
-create policy "admin gerencia recorrentes" on recorrentes for insert with check (eh_admin(grupo_id));
-create policy "admin atualiza recorrentes" on recorrentes for update using (eh_admin(grupo_id));
+⚠️ **Você precisa rodar mais um arquivo SQL** para ativar essa proteção:
+`supabase/migrations/0008_grupo_apenas_master.sql`
 
--- RECORRENTES_HISTORICO (leitura para todos do grupo; escrita só via função)
-create policy "membros leem historico de valores" on recorrentes_historico for select using (
-  exists (select 1 from recorrentes r where r.id = recorrente_id and eh_membro_ativo(r.grupo_id))
-);
-create policy "gestor registra historico de valores" on recorrentes_historico for insert with check (
-  exists (select 1 from recorrentes r where r.id = recorrente_id and eh_admin(r.grupo_id))
-);
+## Ajustes de responsividade
 
--- LANÇAMENTOS
-create policy "membros leem lancamentos" on lancamentos for select using (eh_membro_ativo(grupo_id));
-create policy "gestor lanca despesas/receitas" on lancamentos for insert with check (eh_gestor_ou_admin(grupo_id));
-create policy "gestor edita lancamentos" on lancamentos for update using (eh_gestor_ou_admin(grupo_id));
-create policy "gestor exclui lancamentos" on lancamentos for delete using (eh_gestor_ou_admin(grupo_id));
+- Todos os campos de formulário (texto, seleção, área de texto) agora
+  têm no mínimo 16px de fonte — abaixo disso, o Safari do iPhone dá zoom
+  automático ao tocar no campo, o que quebrava a experiência em celular.
+- O botão flutuante "+" da Agenda agora acompanha a largura do conteúdo em
+  qualquer tela — antes ficava colado na borda real da janela em telas
+  largas, desalinhado do restante do app.
+- Conferidas todas as tabelas (Orçamento, Painel do Gestor, Seguro): todas
+  já tinham rolagem horizontal própria em telas estreitas, sem "vazar"
+  da tela.
+- Grades de cartões (Cotistas, Manutenção, Informações, indicadores do
+  Dashboard) já se ajustam de 1 para 2, 3 ou mais colunas conforme o
+  espaço disponível, do celular ao desktop.
 
--- CONFIRMAÇÕES DE PAGAMENTO
-create policy "membros leem confirmacoes" on confirmacoes_pagamento for select using (
-  exists (select 1 from recorrentes r where r.id = recorrente_id and eh_membro_ativo(r.grupo_id))
-);
-create policy "cotista confirma o proprio pagamento" on confirmacoes_pagamento for update using (
-  membro_id in (select id from grupo_membros where user_id = auth.uid())
-  or exists (select 1 from recorrentes r where r.id = recorrente_id and eh_gestor_ou_admin(r.grupo_id))
-);
-create policy "sistema cria confirmacoes" on confirmacoes_pagamento for insert with check (
-  exists (select 1 from recorrentes r where r.id = recorrente_id and eh_membro_ativo(r.grupo_id))
-);
-
--- CUSTO DE COMBUSTÍVEL
-create policy "membros leem custo combustivel" on historico_custo_combustivel for select using (eh_membro_ativo(grupo_id));
-create policy "gestor gerencia custo combustivel" on historico_custo_combustivel for insert with check (eh_gestor_ou_admin(grupo_id));
-create policy "gestor atualiza custo combustivel" on historico_custo_combustivel for update using (eh_gestor_ou_admin(grupo_id));
-
--- DIÁRIO DE BORDO
-create policy "membros leem diario" on diario_bordo for select using (eh_membro_ativo(grupo_id));
-create policy "membros criam registro no diario" on diario_bordo for insert with check (eh_membro_ativo(grupo_id));
-create policy "autor ou gestor edita registro" on diario_bordo for update using (
-  autor_id in (select id from grupo_membros where user_id = auth.uid())
-  or eh_gestor_ou_admin(grupo_id)
-);
-create policy "gestor exclui registro do diario" on diario_bordo for delete using (eh_gestor_ou_admin(grupo_id));
-
--- MANUTENÇÕES
-create policy "membros leem manutencoes" on manutencoes for select using (eh_membro_ativo(grupo_id));
-create policy "gestor gerencia manutencoes" on manutencoes for insert with check (eh_gestor_ou_admin(grupo_id));
-create policy "gestor atualiza manutencoes" on manutencoes for update using (eh_gestor_ou_admin(grupo_id));
-create policy "gestor exclui manutencoes" on manutencoes for delete using (eh_gestor_ou_admin(grupo_id));
-
--- RATEIO DE MANUTENÇÃO
-create policy "membros leem rateio" on rateio_manutencao for select using (
-  exists (select 1 from manutencoes m where m.id = manutencao_id and eh_membro_ativo(m.grupo_id))
-);
-create policy "sistema/gestor cria rateio" on rateio_manutencao for insert with check (
-  exists (select 1 from manutencoes m where m.id = manutencao_id and eh_gestor_ou_admin(m.grupo_id))
-);
-create policy "cotista confirma o proprio rateio" on rateio_manutencao for update using (
-  membro_id in (select id from grupo_membros where user_id = auth.uid())
-  or exists (select 1 from manutencoes m where m.id = manutencao_id and eh_gestor_ou_admin(m.grupo_id))
-);
-
--- SEGURO
-create policy "membros leem seguro" on seguros for select using (eh_membro_ativo(grupo_id));
-create policy "gestor gerencia seguro" on seguros for insert with check (eh_gestor_ou_admin(grupo_id));
-create policy "admin exclui seguro" on seguros for delete using (eh_admin(grupo_id));
-
--- INFORMAÇÕES ÚTEIS
-create policy "membros leem informacoes" on informacoes_uteis for select using (eh_membro_ativo(grupo_id));
-create policy "membros criam informacoes" on informacoes_uteis for insert with check (eh_membro_ativo(grupo_id));
-create policy "admin exclui informacoes" on informacoes_uteis for delete using (eh_admin(grupo_id));
-
--- ════════════════════════════════════════════════════════════
--- Fim do schema inicial.
--- ════════════════════════════════════════════════════════════
+Não foi preciso rodar nenhum SQL novo para esta parte — é só o código do
+app mesmo, então basta subir os arquivos atualizados no GitHub.

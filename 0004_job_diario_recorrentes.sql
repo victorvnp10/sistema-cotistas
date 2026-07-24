@@ -1,223 +1,113 @@
 import { useState } from "react";
-import { Wrench, Gauge, CalendarClock } from "lucide-react";
+import { UserPlus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import {
-  useManutencoes,
-  useUltimoHorimetroManutencao,
-  useSalvarManutencao,
-  useExcluirManutencao,
-  useConcluirManutencaoData,
-  useConcluirManutencaoHoras,
-} from "@/lib/queries/useManutencoes";
-import { formatarMoeda } from "@/lib/formato";
-import { formatarDataBR } from "@/lib/ranking";
+import { useMembros, useSalvarMembro } from "@/lib/queries/useMembros";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
-import { SegmentedControl } from "@/components/ui/segmented-control";
-import { EmptyState } from "@/components/ui/empty-state";
-import type { Database, TipoGatilhoManutencao } from "@/types/database.types";
+import { Avatar } from "@/components/ui/avatar";
+import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import type { Database, Papel } from "@/types/database.types";
 
-type Manutencao = Database["public"]["Tables"]["manutencoes"]["Row"];
+type Membro = Database["public"]["Tables"]["grupo_membros"]["Row"];
 
-function status(m: Manutencao, horimetroAtual: number) {
-  if (m.feito) return "ok";
-  if (m.tipo_gatilho === "horas") {
-    const restantes = (m.horimetro_base + (m.intervalo_horas ?? 0)) - horimetroAtual;
-    if (restantes < 0) return "venc";
-    if (restantes <= 10) return "urgent";
-    if (restantes <= 30) return "warn";
-    if (restantes <= 60) return "alert";
-    return "normal";
-  }
-  if (!m.proxima_data) return "normal";
-  const dias = Math.round((new Date(m.proxima_data + "T00:00:00").getTime() - Date.now()) / 86400000);
-  if (dias < 0) return "venc";
-  if (dias <= 7) return "urgent";
-  if (dias <= 15) return "warn";
-  if (dias <= 30) return "alert";
-  return "normal";
-}
-
-const BADGE_VARIANT: Record<string, "success" | "neutral" | "warning" | "error"> = {
-  ok: "success", normal: "neutral", alert: "warning", warn: "warning", urgent: "error", venc: "error",
-};
-const LABELS: Record<string, string> = {
-  ok: "Concluída", normal: "Em dia", alert: "Atenção", warn: "Próximo", urgent: "Urgente", venc: "Vencida",
-};
-
-export default function Manutencao() {
-  const { podeGerenciarOrcamento } = useAuth();
-  const toast = useToast();
-  const { data: manutencoes, isLoading } = useManutencoes();
-  const { data: horimetroAtual } = useUltimoHorimetroManutencao();
-  const excluir = useExcluirManutencao();
-  const concluirData = useConcluirManutencaoData();
-  const concluirHoras = useConcluirManutencaoHoras();
-
-  const [modalForm, setModalForm] = useState<{ aberto: boolean; editando: Manutencao | null }>({ aberto: false, editando: null });
-  const [modalConcluirData, setModalConcluirData] = useState<Manutencao | null>(null);
-  const [modalConcluirHoras, setModalConcluirHoras] = useState<Manutencao | null>(null);
-  const [reagendarDias, setReagendarDias] = useState("");
-  const [custoReal, setCustoReal] = useState("");
-
-  const horimetro = horimetroAtual ?? 0;
-
-  async function concluirPorData() {
-    if (!modalConcluirData) return;
-    try {
-      let proximaData: string | undefined;
-      if (reagendarDias) {
-        const d = new Date();
-        d.setDate(d.getDate() + Number(reagendarDias));
-        proximaData = d.toISOString().slice(0, 10);
-      }
-      await concluirData.mutateAsync({ id: modalConcluirData.id, reagendarDias: reagendarDias ? Number(reagendarDias) : undefined, proximaData });
-      toast.sucesso("Manutenção concluída!");
-      setModalConcluirData(null);
-      setReagendarDias("");
-    } catch (e) {
-      toast.erro(e instanceof Error ? e.message : "Erro.");
-    }
-  }
-
-  async function concluirPorHoras() {
-    if (!modalConcluirHoras || !custoReal) return;
-    try {
-      await concluirHoras.mutateAsync({ manutencaoId: modalConcluirHoras.id, custoReal: Number(custoReal) });
-      toast.sucesso("Manutenção concluída e custo rateado!");
-      setModalConcluirHoras(null);
-      setCustoReal("");
-    } catch (e) {
-      toast.erro(e instanceof Error ? e.message : "Erro ao concluir.");
-    }
-  }
+export default function Cotistas() {
+  const { ehAdmin, grupoAtual } = useAuth();
+  const { data: membros, isLoading } = useMembros();
+  const [modalAberto, setModalAberto] = useState(false);
+  const [editando, setEditando] = useState<Membro | null>(null);
 
   return (
     <div className="flex flex-col gap-4 pb-6">
       <Card>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-[15px] font-bold"><Wrench size={17} className="text-royal" /> Manutenções</h2>
-          {podeGerenciarOrcamento && <Button size="sm" onClick={() => setModalForm({ aberto: true, editando: null })}>Nova</Button>}
+          <div>
+            <h2 className="text-[15px] font-bold">Cotistas</h2>
+            <p className="text-[12.5px] text-muted-foreground">
+              Rateio proporcional ao número de {grupoAtual?.termo_cota}s.
+            </p>
+          </div>
+          {ehAdmin && (
+            <Button size="sm" onClick={() => { setEditando(null); setModalAberto(true); }}>
+              <UserPlus size={16} /> Convidar
+            </Button>
+          )}
         </div>
-        {isLoading ? null : !manutencoes?.length ? (
-          <EmptyState titulo="Nenhuma manutenção cadastrada" />
+
+        {isLoading ? (
+          <LoadingSkeleton />
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {manutencoes.map((m) => {
-              const st = status(m, horimetro);
-              return (
-                <div key={m.id} className="rounded-2xl border border-border/60 bg-white p-4">
-                  <div className="mb-2 flex items-start justify-between gap-2">
-                    <p className="text-[14px] font-bold">{m.descricao}</p>
-                    <Badge variant={BADGE_VARIANT[st]}>{LABELS[st]}</Badge>
-                  </div>
-                  <div className="mb-2 flex items-center gap-1.5 text-[12px] text-muted-foreground">
-                    {m.tipo_gatilho === "horas" ? <Gauge size={13} /> : <CalendarClock size={13} />}
-                    {m.tipo_gatilho === "horas"
-                      ? `${horimetro.toFixed(1)}h de ${(m.horimetro_base + (m.intervalo_horas ?? 0)).toFixed(1)}h`
-                      : m.proxima_data ? formatarDataBR(m.proxima_data) : "—"}
-                  </div>
-                  {!!m.custo_previsto && <p className="mb-2 text-[12px] text-muted-foreground">Previsto: {formatarMoeda(m.custo_previsto)}</p>}
-                  {podeGerenciarOrcamento && (
-                    <div className="flex flex-wrap gap-2">
-                      {!m.feito && (m.tipo_gatilho === "horas" ? (
-                        <Button size="sm" variant="success" onClick={() => setModalConcluirHoras(m)}>Concluir</Button>
-                      ) : (
-                        <Button size="sm" variant="success" onClick={() => setModalConcluirData(m)}>Concluir</Button>
-                      ))}
-                      <Button size="sm" variant="outline" onClick={() => setModalForm({ aberto: true, editando: m })}>Editar</Button>
-                      <Button size="sm" variant="destructive" onClick={() => excluir.mutate(m.id)}>Excluir</Button>
-                    </div>
-                  )}
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {membros?.map((m) => (
+              <div key={m.id} className="flex items-center gap-3 rounded-2xl border border-border/60 bg-white p-3.5 shadow-softer">
+                <Avatar nome={m.nome} destaque={m.role === "admin"} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[14px] font-bold">{m.nome}</p>
+                  <p className="truncate text-[12px] text-muted-foreground">{m.email}</p>
                 </div>
-              );
-            })}
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <Badge variant="neutral">{m.cotas} {grupoAtual?.termo_cota}{m.cotas !== 1 ? "s" : ""}</Badge>
+                  <div className="flex gap-1">
+                    {m.role !== "cotista" && <Badge variant="info">{m.role}</Badge>}
+                    <Badge variant={m.ativo ? "success" : "error"}>{m.ativo ? "Ativo" : "Inativo"}</Badge>
+                  </div>
+                  {ehAdmin && (
+                    <button
+                      className="text-[11.5px] font-bold text-royal hover:underline"
+                      onClick={() => { setEditando(m); setModalAberto(true); }}
+                    >
+                      Editar
+                    </button>
+                  )}
+                  {!m.user_id && <span className="text-[10px] italic text-muted-foreground">convite pendente</span>}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </Card>
 
-      <ModalFormManutencao aberto={modalForm.aberto} editando={modalForm.editando} horimetroAtual={horimetro} aoFechar={() => setModalForm({ aberto: false, editando: null })} />
-
-      <Modal aberto={!!modalConcluirData} aoFechar={() => setModalConcluirData(null)} titulo="Confirmar execução">
-        <div className="flex flex-col gap-3">
-          <p className="text-[13.5px] text-muted-foreground">{modalConcluirData?.descricao}</p>
-          <div className="flex flex-col gap-1.5">
-            <Label>Reagendar em quantos dias? (opcional)</Label>
-            <Input type="number" min={1} value={reagendarDias} onChange={(e) => setReagendarDias(e.target.value)} />
-          </div>
-          <div className="mt-2 flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setModalConcluirData(null)}>Cancelar</Button>
-            <Button variant="success" onClick={concluirPorData}>Confirmar</Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal aberto={!!modalConcluirHoras} aoFechar={() => setModalConcluirHoras(null)} titulo="Concluir por horímetro">
-        <div className="flex flex-col gap-3">
-          <p className="text-[13.5px] text-muted-foreground">{modalConcluirHoras?.descricao}</p>
-          <p className="text-[12px] text-muted-foreground">
-            Horímetro atual: {horimetro.toFixed(1)}h (base: {modalConcluirHoras?.horimetro_base.toFixed(1)}h)
-          </p>
-          <div className="flex flex-col gap-1.5">
-            <Label>Custo real gasto (R$)</Label>
-            <Input type="number" min={0} step={0.01} value={custoReal} onChange={(e) => setCustoReal(e.target.value)} />
-          </div>
-          <div className="mt-2 flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setModalConcluirHoras(null)}>Cancelar</Button>
-            <Button variant="success" onClick={concluirPorHoras} disabled={concluirHoras.isPending}>
-              {concluirHoras.isPending ? "Concluindo..." : "Concluir e ratear"}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      <ModalCotista aberto={modalAberto} aoFechar={() => setModalAberto(false)} membro={editando} />
     </div>
   );
 }
 
-function ModalFormManutencao({ aberto, editando, horimetroAtual, aoFechar }: { aberto: boolean; editando: Manutencao | null; horimetroAtual: number; aoFechar: () => void }) {
+function ModalCotista({ aberto, aoFechar, membro }: { aberto: boolean; aoFechar: () => void; membro: Membro | null }) {
+  const { grupoAtual } = useAuth();
   const toast = useToast();
-  const salvar = useSalvarManutencao();
+  const salvar = useSalvarMembro();
 
-  const [descricao, setDescricao] = useState(editando?.descricao ?? "");
-  const [tipoGatilho, setTipoGatilho] = useState<TipoGatilhoManutencao>(editando?.tipo_gatilho ?? "data");
-  const [periodicidade, setPeriodicidade] = useState(editando?.periodicidade ?? "");
-  const [proximaData, setProximaData] = useState(editando?.proxima_data ?? "");
-  const [intervaloHoras, setIntervaloHoras] = useState(String(editando?.intervalo_horas ?? ""));
-  const [custoPrevisto, setCustoPrevisto] = useState(String(editando?.custo_previsto ?? ""));
-  const [observacao, setObservacao] = useState(editando?.observacao ?? "");
+  const [nome, setNome] = useState(membro?.nome ?? "");
+  const [email, setEmail] = useState(membro?.email ?? "");
+  const [telefone, setTelefone] = useState(membro?.telefone ?? "");
+  const [role, setRole] = useState<Papel>(membro?.role ?? "cotista");
+  const [cotas, setCotas] = useState(membro?.cotas ?? 1);
+  const [ativo, setAtivo] = useState(membro?.ativo ?? true);
 
-  const chave = editando?.id ?? "novo";
-  const [ultimaChave, setUltimaChave] = useState(chave);
-  if (chave !== ultimaChave) {
-    setUltimaChave(chave);
-    setDescricao(editando?.descricao ?? "");
-    setTipoGatilho(editando?.tipo_gatilho ?? "data");
-    setPeriodicidade(editando?.periodicidade ?? "");
-    setProximaData(editando?.proxima_data ?? "");
-    setIntervaloHoras(String(editando?.intervalo_horas ?? ""));
-    setCustoPrevisto(String(editando?.custo_previsto ?? ""));
-    setObservacao(editando?.observacao ?? "");
+  const chaveForm = membro?.id ?? "novo";
+  const [ultimaChave, setUltimaChave] = useState(chaveForm);
+  if (chaveForm !== ultimaChave) {
+    setUltimaChave(chaveForm);
+    setNome(membro?.nome ?? "");
+    setEmail(membro?.email ?? "");
+    setTelefone(membro?.telefone ?? "");
+    setRole(membro?.role ?? "cotista");
+    setCotas(membro?.cotas ?? 1);
+    setAtivo(membro?.ativo ?? true);
   }
 
-  async function salvarForm() {
-    if (!descricao) { toast.erro("Preencha a descrição."); return; }
-    if (tipoGatilho === "data" && !proximaData) { toast.erro("Preencha a próxima data."); return; }
-    if (tipoGatilho === "horas" && !intervaloHoras) { toast.erro("Informe o intervalo de horas."); return; }
+  async function aoSalvar() {
+    if (!nome || !email) {
+      toast.erro("Preencha nome e e-mail.");
+      return;
+    }
     try {
-      await salvar.mutateAsync({
-        id: editando?.id, descricao, tipo_gatilho: tipoGatilho,
-        periodicidade: periodicidade || null, proxima_data: proximaData || null,
-        intervalo_horas: intervaloHoras ? Number(intervaloHoras) : null,
-        horimetro_base: editando?.horimetro_base ?? horimetroAtual,
-        custo_previsto: custoPrevisto ? Number(custoPrevisto) : 0,
-        observacao: observacao || null,
-      });
-      toast.sucesso("Manutenção salva!");
+      await salvar.mutateAsync({ id: membro?.id, nome, email, telefone: telefone || null, role, cotas, ativo });
+      toast.sucesso(membro ? "Cotista atualizado!" : "Convite criado! Peça para a pessoa se cadastrar com este e-mail.");
       aoFechar();
     } catch (e) {
       toast.erro(e instanceof Error ? e.message : "Erro ao salvar.");
@@ -225,46 +115,44 @@ function ModalFormManutencao({ aberto, editando, horimetroAtual, aoFechar }: { a
   }
 
   return (
-    <Modal aberto={aberto} aoFechar={aoFechar} titulo={editando ? "Editar manutenção" : "Nova manutenção"}>
+    <Modal aberto={aberto} aoFechar={aoFechar} titulo={membro ? "Editar cotista" : "Convidar cotista"}>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
-          <Label>Descrição</Label>
-          <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex: Troca de óleo" />
+          <Label>Nome</Label>
+          <Input value={nome} onChange={(e) => setNome(e.target.value)} />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label>Gatilho</Label>
-          <SegmentedControl opcoes={[{ valor: "data", label: "Por data" }, { valor: "horas", label: "Por horímetro" }]} valor={tipoGatilho} aoMudar={setTipoGatilho} />
+          <Label>E-mail</Label>
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!!membro} />
+          {!membro && <p className="text-[12px] text-muted-foreground">A pessoa deve se cadastrar com exatamente este e-mail.</p>}
         </div>
-        {tipoGatilho === "data" ? (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Periodicidade</Label>
-              <Input value={periodicidade} onChange={(e) => setPeriodicidade(e.target.value)} placeholder="Ex: Anual" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Próxima data</Label>
-              <Input type="date" value={proximaData} onChange={(e) => setProximaData(e.target.value)} />
-            </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Telefone</Label>
+          <Input value={telefone ?? ""} onChange={(e) => setTelefone(e.target.value)} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label>Função</Label>
+            <select className="h-12 rounded-2xl border border-input bg-white px-3 text-[16px]" value={role} onChange={(e) => setRole(e.target.value as Papel)}>
+              <option value="cotista">Cotista</option>
+              <option value="gestor">Gestor</option>
+              <option value="admin">Admin</option>
+            </select>
           </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Intervalo (horas)</Label>
-              <Input type="number" min={1} value={intervaloHoras} onChange={(e) => setIntervaloHoras(e.target.value)} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Custo previsto (R$)</Label>
-              <Input type="number" min={0} step={0.01} value={custoPrevisto} onChange={(e) => setCustoPrevisto(e.target.value)} />
-            </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>{grupoAtual?.termo_cota}s</Label>
+            <Input type="number" min={0.5} step={0.5} value={cotas} onChange={(e) => setCotas(Number(e.target.value))} />
           </div>
+        </div>
+        {membro && (
+          <label className="flex items-center gap-2 text-[13.5px] font-medium">
+            <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} className="h-4 w-4 accent-royal" />
+            Ativo
+          </label>
         )}
-        <div className="flex flex-col gap-1.5">
-          <Label>Observação</Label>
-          <Input value={observacao} onChange={(e) => setObservacao(e.target.value)} />
-        </div>
         <div className="mt-2 flex justify-end gap-2">
           <Button variant="ghost" onClick={aoFechar}>Cancelar</Button>
-          <Button onClick={salvarForm} disabled={salvar.isPending}>{salvar.isPending ? "Salvando..." : "Salvar"}</Button>
+          <Button onClick={aoSalvar} disabled={salvar.isPending}>{salvar.isPending ? "Salvando..." : "Salvar"}</Button>
         </div>
       </div>
     </Modal>
