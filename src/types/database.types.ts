@@ -548,6 +548,15 @@ export interface Database {
         Args: { p_grupo_id: string; p_mes_ref: string; p_ano_ref: number };
         Returns: PainelGestor;
       };
+      criar_grupo: {
+        Args: {
+          p_nome: string;
+          p_nome_recurso: string;
+          p_dia_virada: number;
+          p_nome_admin: string;
+        };
+        Returns: Database["public"]["Tables"]["grupos"]["Row"];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

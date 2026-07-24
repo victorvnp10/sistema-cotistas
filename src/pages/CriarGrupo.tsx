@@ -24,30 +24,15 @@ export default function CriarGrupo() {
     setErro(null);
     setCarregando(true);
 
-    const { data: grupo, error: erroGrupo } = await supabase
-      .from("grupos")
-      .insert({ nome, nome_recurso: nomeRecurso, dia_virada: diaVirada })
-      .select()
-      .single();
+    const { data: grupo, error: erroGrupo } = await supabase.rpc("criar_grupo", {
+      p_nome: nome,
+      p_nome_recurso: nomeRecurso,
+      p_dia_virada: diaVirada,
+      p_nome_admin: nomeAdmin || session.user.email || "Admin",
+    });
 
     if (erroGrupo || !grupo) {
       setErro("Não foi possível criar o grupo: " + erroGrupo?.message);
-      setCarregando(false);
-      return;
-    }
-
-    const { error: erroMembro } = await supabase.from("grupo_membros").insert({
-      grupo_id: grupo.id,
-      user_id: session.user.id,
-      nome: nomeAdmin || session.user.email || "Admin",
-      email: session.user.email ?? "",
-      role: "admin",
-      cotas: 1,
-      ativo: true,
-    });
-
-    if (erroMembro) {
-      setErro("Grupo criado, mas houve um erro ao te cadastrar como admin: " + erroMembro.message);
       setCarregando(false);
       return;
     }

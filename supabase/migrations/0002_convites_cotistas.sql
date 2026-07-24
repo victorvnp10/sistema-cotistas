@@ -12,9 +12,11 @@ alter table grupo_membros alter column user_id drop not null;
 -- este gatilho conecta automaticamente o login dela ao registro de cotista
 -- que o Admin já tinha criado -- ela não precisa fazer mais nada.
 create or replace function vincular_convite_pendente() returns trigger
-language plpgsql security definer as $$
+language plpgsql security definer
+set search_path = public
+as $$
 begin
-  update grupo_membros
+  update public.grupo_membros
      set user_id = new.id
    where email = new.email
      and user_id is null;
