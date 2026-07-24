@@ -119,7 +119,7 @@ export default function Manutencao() {
                   <div className="mb-2 flex items-center gap-1.5 text-[12px] text-muted-foreground">
                     {m.tipo_gatilho === "horas" ? <Gauge size={13} /> : <CalendarClock size={13} />}
                     {m.tipo_gatilho === "horas"
-                      ? `${horimetro.toFixed(1)}h de ${(m.horimetro_base + (m.intervalo_horas ?? 0)).toFixed(1)}h`
+                      ? `${Math.max(0, horimetro - m.horimetro_base).toFixed(1)}h de ${(m.intervalo_horas ?? 0).toFixed(1)}h`
                       : m.proxima_data ? formatarDataBR(m.proxima_data) : "—"}
                   </div>
                   {!!m.custo_previsto && <p className="mb-2 text-[12px] text-muted-foreground">Previsto: {formatarMoeda(m.custo_previsto)}</p>}
@@ -188,6 +188,7 @@ function ModalFormManutencao({ aberto, editando, horimetroAtual, aoFechar }: { a
   const [periodicidade, setPeriodicidade] = useState(editando?.periodicidade ?? "");
   const [proximaData, setProximaData] = useState(editando?.proxima_data ?? "");
   const [intervaloHoras, setIntervaloHoras] = useState(String(editando?.intervalo_horas ?? ""));
+  const [horimetroBase, setHorimetroBase] = useState(String(editando?.horimetro_base ?? horimetroAtual));
   const [custoPrevisto, setCustoPrevisto] = useState(String(editando?.custo_previsto ?? ""));
   const [observacao, setObservacao] = useState(editando?.observacao ?? "");
 
@@ -200,6 +201,7 @@ function ModalFormManutencao({ aberto, editando, horimetroAtual, aoFechar }: { a
     setPeriodicidade(editando?.periodicidade ?? "");
     setProximaData(editando?.proxima_data ?? "");
     setIntervaloHoras(String(editando?.intervalo_horas ?? ""));
+    setHorimetroBase(String(editando?.horimetro_base ?? horimetroAtual));
     setCustoPrevisto(String(editando?.custo_previsto ?? ""));
     setObservacao(editando?.observacao ?? "");
   }
@@ -213,7 +215,7 @@ function ModalFormManutencao({ aberto, editando, horimetroAtual, aoFechar }: { a
         id: editando?.id, descricao, tipo_gatilho: tipoGatilho,
         periodicidade: periodicidade || null, proxima_data: proximaData || null,
         intervalo_horas: intervaloHoras ? Number(intervaloHoras) : null,
-        horimetro_base: editando?.horimetro_base ?? horimetroAtual,
+        horimetro_base: horimetroBase !== "" ? Number(horimetroBase) : horimetroAtual,
         custo_previsto: custoPrevisto ? Number(custoPrevisto) : 0,
         observacao: observacao || null,
       });
@@ -255,6 +257,15 @@ function ModalFormManutencao({ aberto, editando, horimetroAtual, aoFechar }: { a
             <div className="flex flex-col gap-1.5">
               <Label>Custo previsto (R$)</Label>
               <Input type="number" min={0} step={0.01} value={custoPrevisto} onChange={(e) => setCustoPrevisto(e.target.value)} />
+            </div>
+            <div className="col-span-2 flex flex-col gap-1.5">
+              <Label>Horímetro base (início da contagem)</Label>
+              <Input type="number" min={0} step={0.1} value={horimetroBase} onChange={(e) => setHorimetroBase(e.target.value)} />
+              <p className="text-[11.5px] text-muted-foreground">
+                Horímetro atual da embarcação: <strong>{horimetroAtual.toFixed(1)}h</strong>. Deixe igual ao atual se
+                a contagem deste ciclo começa agora, ou coloque um valor menor (ex: 0) se as horas já usadas devem
+                contar para este ciclo.
+              </p>
             </div>
           </div>
         )}
