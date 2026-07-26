@@ -252,6 +252,28 @@ export interface Database {
         >;
         Relationships: [];
       };
+      historico_custo_oleo: {
+        Row: {
+          id: string;
+          grupo_id: string;
+          custo_galao: number;
+          data_inicio: string;
+          data_fim: string | null;
+          alterado_por: string | null;
+          criado_em: string;
+        };
+        Insert: {
+          id?: string;
+          grupo_id: string;
+          custo_galao: number;
+          data_inicio?: string;
+          data_fim?: string | null;
+          alterado_por?: string | null;
+          criado_em?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["historico_custo_oleo"]["Insert"]>;
+        Relationships: [];
+      };
       diario_bordo: {
         Row: {
           id: string;
@@ -511,6 +533,29 @@ export interface Database {
           p_data_inicio: string;
         };
         Returns: void;
+      };
+      definir_custo_oleo: {
+        Args: { p_grupo_id: string; p_custo_galao: number; p_data_inicio?: string };
+        Returns: Database["public"]["Tables"]["historico_custo_oleo"]["Row"];
+      };
+      editar_custo_oleo_atual: {
+        Args: { p_id: string; p_custo_galao: number; p_data_inicio: string };
+        Returns: void;
+      };
+      fechar_custo_oleo: {
+        Args: { p_id: string; p_data_fim: string };
+        Returns: void;
+      };
+      resumo_custo_oleo: {
+        Args: { p_grupo_id: string };
+        Returns: {
+          id: string;
+          custo_galao: number;
+          data_inicio: string;
+          data_fim: string | null;
+          horas_consumidas: number;
+          custo_por_hora: number | null;
+        }[];
       };
       concluir_manutencao: {
         Args: {
