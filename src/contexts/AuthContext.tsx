@@ -15,6 +15,8 @@ type Membro = Database["public"]["Tables"]["grupo_membros"]["Row"];
 
 interface AuthContextValue {
   carregando: boolean;
+  /** true assim que as membresias do usuário logado terminaram de ser buscadas (mesmo que vazias) */
+  membresiasCarregadas: boolean;
   session: Session | null;
   /** Grupo(s) a que o usuário logado pertence, com seu papel/cotas em cada um */
   membresias: (Membro & { grupo: Grupo })[];
@@ -33,6 +35,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [carregando, setCarregando] = useState(true);
+  const [membresiasCarregadas, setMembresiasCarregadas] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [membresias, setMembresias] = useState<(Membro & { grupo: Grupo })[]>([]);
   const [grupoIdSelecionado, setGrupoIdSelecionado] = useState<string | null>(
@@ -44,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const userId = userData.user?.id;
     if (!userId) {
       setMembresias([]);
+      setMembresiasCarregadas(true);
       return;
     }
 
@@ -56,9 +60,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) {
       console.error("Erro ao carregar grupos do usuário:", error.message);
       setMembresias([]);
+      setMembresiasCarregadas(true);
       return;
     }
     setMembresias((data ?? []) as unknown as (Membro & { grupo: Grupo })[]);
+    setMembresiasCarregadas(true);
   }
 
   useEffect(() => {
@@ -82,9 +88,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (session) {
+      setMembresiasCarregadas(false);
       carregarMembresias();
     } else {
       setMembresias([]);
+      setMembresiasCarregadas(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
@@ -103,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function sair() {
     await supabase.auth.signOut();
     localStorage.removeItem("grupoIdSelecionado");
+    setMembresiasCarregadas(false);
   }
 
   const ehAdmin = membroAtual?.role === "admin";
@@ -112,6 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value: AuthContextValue = {
     carregando,
+    membresiasCarregadas,
     session,
     membresias,
     grupoAtual,
