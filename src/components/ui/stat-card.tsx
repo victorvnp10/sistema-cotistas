@@ -33,17 +33,17 @@ export function StatCard({
       )}
     >
       <div className="flex min-w-0 items-center justify-between gap-2">
-        <span className={cn("min-w-0 break-words text-[11px] font-bold uppercase tracking-wide", destaque ? "text-white/80" : "text-muted-foreground")}>
+        <span className={cn("min-w-0 [overflow-wrap:anywhere] text-[11px] font-bold uppercase tracking-wide", destaque ? "text-white/80" : "text-muted-foreground")}>
           {titulo}
         </span>
         {icon && <span className={cn("shrink-0", destaque ? "text-white/80" : "text-royal/70")}>{icon}</span>}
       </div>
       <div className="min-w-0">
-        <p className={cn("break-words text-[21px] sm:text-[26px] font-extrabold leading-tight sm:leading-none tracking-tight", destaque ? "text-white" : "text-foreground")}>
+        <p className={cn("[overflow-wrap:anywhere] text-[19px] sm:text-[26px] font-extrabold leading-tight sm:leading-none tracking-tight", destaque ? "text-white" : "text-foreground")}>
           {valor}
         </p>
         {sub && (
-          <p className={cn("mt-1.5 break-words text-[12px] leading-snug", destaque ? "text-white/75" : "text-muted-foreground")}>{sub}</p>
+          <p className={cn("mt-1.5 [overflow-wrap:anywhere] text-[12px] leading-snug", destaque ? "text-white/75" : "text-muted-foreground")}>{sub}</p>
         )}
       </div>
     </Comp>
