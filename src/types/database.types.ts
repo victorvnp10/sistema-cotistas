@@ -651,7 +651,7 @@ export interface PainelGestor {
     diasTodosAno: number;
     horasMes: number;
     horasAno: number;
-    custoCombustivelMes: number;
+    custoOleoMes: number;
   }[];
   totais: {
     diasUteisMes: number;
@@ -687,8 +687,8 @@ export interface PainelGestor {
     custoPrevisto: number;
   } | null;
   custosVariaveis: {
-    custoCombustivelPorHora: number;
-    custoCombustivelTotalMes: number;
+    custoOleoPorHora: number;
+    custoOleoTotalMes: number;
     manutencoesHoras: {
       descricao: string;
       proximaData: string | null;
