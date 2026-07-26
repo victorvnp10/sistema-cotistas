@@ -532,7 +532,7 @@ function SecaoProjecaoManutencao() {
                 <p className="text-[13px] font-bold text-royal">{primeira.custo_previsto > 0 ? formatarMoeda(primeira.custo_previsto) : "sem previsão"}</p>
               </div>
               <p className="mb-2 text-[12px] text-muted-foreground">
-                {primeira.horimetro_atual.toFixed(1)}h de {(primeira.horimetro_base + primeira.intervalo_horas).toFixed(1)}h
+                {primeira.horas_usadas.toFixed(1)}h de {primeira.intervalo_horas.toFixed(1)}h neste ciclo (desde {formatarDataBR(primeira.data_inicio_ciclo)})
               </p>
               <div className="flex flex-col gap-1.5">
                 {linhas!.slice().sort((a, b) => b.horas - a.horas).map((l) => (
