@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Wallet, PlusCircle, Repeat, CheckCircle2, Fuel, Droplet, Clock } from "lucide-react";
+import { Wallet, PlusCircle, Repeat, CheckCircle2, Droplet, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { useMembros } from "@/lib/queries/useMembros";
@@ -20,11 +20,6 @@ import {
   useSaldoAtual,
   useCustoFixoMes,
 } from "@/lib/queries/useOrcamento";
-import {
-  useHistoricoCombustivel,
-  useDefinirCustoCombustivel,
-  useEditarCustoCombustivelAtual,
-} from "@/lib/queries/useCombustivel";
 import {
   useResumoOleo,
   useDefinirCustoOleo,
@@ -108,7 +103,6 @@ export default function Orcamento() {
         </div>
       </Card>
 
-      {podeGerenciarOrcamento && <SecaoCombustivel />}
       {podeGerenciarOrcamento && <SecaoOleo />}
       <SecaoProjecaoManutencao />
       {podeGerenciarOrcamento && <SecaoLancamentos />}
@@ -420,102 +414,6 @@ function SecaoConfirmacoes() {
   );
 }
 
-function SecaoCombustivel() {
-  const toast = useToast();
-  const { data: historico, isLoading } = useHistoricoCombustivel();
-  const definir = useDefinirCustoCombustivel();
-  const editar = useEditarCustoCombustivelAtual();
-
-  const atual = historico?.find((h) => !h.vigencia_fim) ?? null;
-  const [modo, setModo] = useState<"novo" | "editar" | null>(null);
-  const [consumo, setConsumo] = useState("");
-  const [custoUnidade, setCustoUnidade] = useState("");
-  const [unidades, setUnidades] = useState("20");
-  const [dataInicio, setDataInicio] = useState(new Date().toISOString().slice(0, 10));
-
-  function abrir(m: "novo" | "editar") {
-    if (m === "editar" && atual) {
-      setConsumo(String(atual.consumo_por_hora));
-      setCustoUnidade(String(atual.custo_unidade));
-      setUnidades(String(atual.unidades));
-      setDataInicio(atual.vigencia_inicio);
-    } else {
-      setConsumo("");
-      setCustoUnidade("");
-      setUnidades("20");
-      setDataInicio(new Date().toISOString().slice(0, 10));
-    }
-    setModo(m);
-  }
-
-  async function salvar() {
-    try {
-      if (modo === "editar" && atual) {
-        await editar.mutateAsync({ id: atual.id, consumoPorHora: Number(consumo), custoUnidade: Number(custoUnidade), unidades: Number(unidades), dataInicio });
-        toast.sucesso("Atualizado!");
-      } else {
-        await definir.mutateAsync({ consumoPorHora: Number(consumo), custoUnidade: Number(custoUnidade), unidades: Number(unidades), dataInicio });
-        toast.sucesso("Novo período registrado!");
-      }
-      setModo(null);
-    } catch (e) {
-      toast.erro(e instanceof Error ? e.message : "Erro ao salvar.");
-    }
-  }
-
-  return (
-    <Card>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-[15px] font-bold"><Fuel size={17} className="text-royal" /> Combustível</h2>
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => abrir("editar")} disabled={!atual}>Editar</Button>
-          <Button size="sm" onClick={() => abrir("novo")}>Novo tanque</Button>
-        </div>
-      </div>
-      {isLoading ? null : !atual ? (
-        <EmptyState titulo="Nenhuma configuração cadastrada" />
-      ) : (
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 [&>*]:min-w-0">
-          <StatCard titulo="Consumo" valor={`${atual.consumo_por_hora} L/h`} />
-          <StatCard titulo="Custo do tanque" valor={formatarMoeda(atual.custo_unidade)} />
-          <StatCard titulo="Litros" valor={`${atual.unidades} L`} />
-          <StatCard titulo="Por hora" valor={formatarMoeda(atual.custo_por_hora)} />
-        </div>
-      )}
-      <p className="mt-3 text-[11.5px] text-muted-foreground">
-        Cobrado com 1 mês de atraso, proporcional às horas de uso de cada cotista.
-      </p>
-
-      <Modal aberto={!!modo} aoFechar={() => setModo(null)} titulo={modo === "editar" ? "Editar tanque atual" : "Novo tanque"}>
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label>Data de início</Label>
-            <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Consumo (L/hora)</Label>
-            <Input type="number" min={0} step={0.01} value={consumo} onChange={(e) => setConsumo(e.target.value)} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Custo do tanque (R$)</Label>
-              <Input type="number" min={0} step={0.01} value={custoUnidade} onChange={(e) => setCustoUnidade(e.target.value)} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Litros</Label>
-              <Input type="number" min={0.1} step={0.1} value={unidades} onChange={(e) => setUnidades(e.target.value)} />
-            </div>
-          </div>
-          <div className="mt-2 flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setModo(null)}>Cancelar</Button>
-            <Button onClick={salvar} disabled={definir.isPending || editar.isPending}>Salvar</Button>
-          </div>
-        </div>
-      </Modal>
-    </Card>
-  );
-}
-
 function SecaoOleo() {
   const toast = useToast();
   const { data: galoes, isLoading } = useResumoOleo();
@@ -616,8 +514,8 @@ function SecaoOleo() {
         </div>
       )}
       <p className="mt-3 text-[11.5px] text-muted-foreground">
-        O custo por hora é sempre calculado pelo uso real registrado no Diário de Bordo dentro do período de
-        cada galão — não é uma taxa fixa.
+        Cobrado com 1 mês de atraso, proporcional às horas de uso de cada cotista, usando o preço do galão
+        em uso no momento (custo do galão ÷ horas consumidas por ele até agora).
       </p>
 
       <Modal aberto={!!modo} aoFechar={() => setModo(null)} titulo={modo === "editar" ? "Editar galão atual" : "Novo galão"}>
