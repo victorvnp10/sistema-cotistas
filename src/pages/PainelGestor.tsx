@@ -40,7 +40,7 @@ export default function PainelGestor() {
         <>
           <Card>
             <h2 className="mb-4 text-[15px] font-bold">Totais de uso — {MESES[Number(painel.mesRef.split("-")[1]) - 1]}/{painel.anoRef}</h2>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-6">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-6 [&>*]:min-w-0">
               <StatCard titulo="Úteis (mês)" valor={String(painel.totais.diasUteisMes)} />
               <StatCard titulo="Todos (mês)" valor={String(painel.totais.diasTodosMes)} />
               <StatCard titulo="Úteis (ano)" valor={String(painel.totais.diasUteisAno)} />
@@ -78,7 +78,7 @@ export default function PainelGestor() {
 
           <Card>
             <h2 className="mb-4 text-[15px] font-bold">Balanço financeiro do mês</h2>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 [&>*]:min-w-0">
               <StatCard titulo="Custo fixo" valor={formatarMoeda(painel.financeiro.custoFixoMes)} />
               <StatCard titulo="Custo variável" valor={formatarMoeda(painel.financeiro.custoVariavelMes)} />
               <StatCard titulo="Despesa total" valor={formatarMoeda(painel.financeiro.despesaTotalMes)} destaque />
@@ -88,7 +88,7 @@ export default function PainelGestor() {
 
           <Card>
             <h2 className="mb-4 text-[15px] font-bold">Custos variáveis</h2>
-            <div className="mb-4 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+            <div className="mb-4 grid grid-cols-1 gap-2.5 sm:grid-cols-3 [&>*]:min-w-0">
               <StatCard titulo="Combustível / hora" valor={formatarMoeda(painel.custosVariaveis.custoCombustivelPorHora)} />
               <StatCard titulo="Combustível (mês)" valor={formatarMoeda(painel.custosVariaveis.custoCombustivelTotalMes)} />
               <StatCard titulo="Rateios pendentes" valor={String(painel.custosVariaveis.rateiosPendentes)} />
