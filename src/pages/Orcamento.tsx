@@ -53,7 +53,7 @@ export default function Orcamento() {
 
   return (
     <div className="flex flex-col gap-4 pb-6">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 [&>*]:min-w-0">
         <StatCard titulo="Saldo atual" valor={formatarMoeda(saldoAtual ?? 0)} icon={<Wallet size={16} />} destaque />
         <StatCard titulo="Custo fixo do mês" valor={formatarMoeda(custoFixoMes ?? 0)} />
         <StatCard titulo="Reserva de emergência" valor={formatarMoeda(mensalidade?.mesAtual.reservaEmergencia ?? 0)} />
@@ -467,7 +467,7 @@ function SecaoCombustivel() {
       {isLoading ? null : !atual ? (
         <EmptyState titulo="Nenhuma configuração cadastrada" />
       ) : (
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 [&>*]:min-w-0">
           <StatCard titulo="Consumo" valor={`${atual.consumo_por_hora} L/h`} />
           <StatCard titulo="Custo do tanque" valor={formatarMoeda(atual.custo_unidade)} />
           <StatCard titulo="Litros" valor={`${atual.unidades} L`} />
