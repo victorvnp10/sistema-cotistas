@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Anchor } from "lucide-react";
@@ -10,14 +10,20 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 /**
- * Tela de PROVISIONAMENTO -- só o usuário master chega aqui (ver App.tsx).
+ * Tela de PROVISIONAMENTO -- só o usuário master chega aqui (ver App.tsx,
+ * que já bloqueia a rota para qualquer outro usuário). O guard abaixo é
+ * uma segunda camada de proteção, direto no componente.
  * Ele cria o grupo e já indica quem vai ser o Admin (o novo gestor/cliente),
  * que recebe um convite por e-mail -- o mesmo mecanismo usado para
  * convidar cotistas. O master não precisa ser admin do grupo que cria.
  */
 export default function CriarGrupo() {
   const navigate = useNavigate();
-  const { session, recarregarMembresias, selecionarGrupo } = useAuth();
+  const { session, ehMaster, recarregarMembresias, selecionarGrupo } = useAuth();
+
+  useEffect(() => {
+    if (!ehMaster) navigate("/", { replace: true });
+  }, [ehMaster, navigate]);
 
   const [nome, setNome] = useState("");
   const [nomeRecurso, setNomeRecurso] = useState("Embarcação");
