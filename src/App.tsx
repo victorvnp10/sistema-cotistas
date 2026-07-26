@@ -14,6 +14,8 @@ import Diario from "@/pages/Diario";
 import Seguro from "@/pages/Seguro";
 import Informacoes from "@/pages/Informacoes";
 import PainelGestor from "@/pages/PainelGestor";
+import Administrador from "@/pages/Administrador";
+import DefinirNovaSenha from "@/pages/DefinirNovaSenha";
 import AppLayout from "@/components/AppLayout";
 
 function TelaCarregando() {
@@ -25,12 +27,16 @@ function TelaCarregando() {
 }
 
 export default function App() {
-  const { carregando, membresiasCarregadas, session, membresias, ehAdmin } = useAuth();
+  const { carregando, membresiasCarregadas, emRecuperacaoSenha, session, membresias, ehAdmin } = useAuth();
 
   // Enquanto a sessão OU as membresias ainda estão carregando, não avalia
   // nenhuma rota de onboarding/dashboard -- evita o flash da tela de criar
   // grupo (ou aguardando convite) antes do dashboard aparecer.
   if (carregando || (session && !membresiasCarregadas)) return <TelaCarregando />;
+
+  // Usuário chegou aqui por um link de redefinição de senha por e-mail --
+  // bloqueia qualquer outra tela até definir a senha nova.
+  if (emRecuperacaoSenha) return <DefinirNovaSenha />;
 
   const ehMaster = session?.user.email === MASTER_EMAIL;
 
@@ -42,10 +48,10 @@ export default function App() {
         element={
           !session ? (
             <Navigate to="/login" replace />
-          ) : membresias.length > 0 ? (
-            <Navigate to="/" replace />
           ) : ehMaster ? (
             <CriarGrupo />
+          ) : membresias.length > 0 ? (
+            <Navigate to="/" replace />
           ) : (
             <Navigate to="/aguardando-convite" replace />
           )
@@ -85,6 +91,7 @@ export default function App() {
                 <Route path="/painel-gestor" element={<PainelGestor />} />
                 {ehAdmin && <Route path="/cotistas" element={<Cotistas />} />}
                 {ehAdmin && <Route path="/feriados" element={<Feriados />} />}
+                {ehMaster && <Route path="/administrador" element={<Administrador />} />}
               </Routes>
             </AppLayout>
           )
