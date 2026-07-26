@@ -25,9 +25,12 @@ function TelaCarregando() {
 }
 
 export default function App() {
-  const { carregando, session, membresias, ehAdmin } = useAuth();
+  const { carregando, membresiasCarregadas, session, membresias, ehAdmin } = useAuth();
 
-  if (carregando) return <TelaCarregando />;
+  // Enquanto a sessão OU as membresias ainda estão carregando, não avalia
+  // nenhuma rota de onboarding/dashboard -- evita o flash da tela de criar
+  // grupo (ou aguardando convite) antes do dashboard aparecer.
+  if (carregando || (session && !membresiasCarregadas)) return <TelaCarregando />;
 
   const ehMaster = session?.user.email === MASTER_EMAIL;
 
