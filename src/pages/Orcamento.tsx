@@ -45,6 +45,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import type { Database, TipoLancamento } from "@/types/database.types";
 
 type Recorrente = Database["public"]["Tables"]["recorrentes"]["Row"];
+type ResumoOleoItem = Database["public"]["Functions"]["resumo_custo_oleo"]["Returns"][number];
 
 export default function Orcamento() {
   const { grupoAtual, membroAtual, podeGerenciarOrcamento } = useAuth();
@@ -522,7 +523,7 @@ function SecaoOleo() {
   const editar = useEditarCustoOleoAtual();
   const fechar = useFecharCustoOleo();
 
-  const atual = galoes?.find((g) => !g.data_fim) ?? null;
+  const atual = galoes?.find((g: ResumoOleoItem) => !g.data_fim) ?? null;
 
   const [modo, setModo] = useState<"novo" | "editar" | null>(null);
   const [custoGalao, setCustoGalao] = useState("");
@@ -583,7 +584,7 @@ function SecaoOleo() {
         <EmptyState titulo="Nenhum galão cadastrado" />
       ) : (
         <div className="flex flex-col gap-2.5">
-          {galoes.map((g) => (
+          {galoes.map((g: ResumoOleoItem) => (
             <div key={g.id} className="rounded-2xl border border-border/60 bg-white p-3.5">
               <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                 <p className="text-[13.5px] font-bold">{formatarMoeda(g.custo_galao)}</p>
