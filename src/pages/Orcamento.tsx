@@ -73,27 +73,27 @@ export default function Orcamento() {
 
       <Card>
         <h2 className="mb-3 text-[15px] font-bold">👥 Mensalidade de todos os cotistas</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-[13px]">
+        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <table className="w-full min-w-[560px] text-[13px]">
             <thead>
               <tr className="text-left text-[10.5px] font-bold uppercase text-muted-foreground">
-                <th className="pb-2">Cotista</th>
-                <th className="pb-2 text-right">Fixo</th>
-                <th className="pb-2 text-right">Variável</th>
-                <th className="pb-2 text-right">Reserva</th>
-                <th className="pb-2 text-right">Total mês</th>
-                <th className="pb-2 text-right">Próximo</th>
+                <th className="whitespace-nowrap pb-2">Cotista</th>
+                <th className="whitespace-nowrap pb-2 text-right">Fixo</th>
+                <th className="whitespace-nowrap pb-2 text-right">Variável</th>
+                <th className="whitespace-nowrap pb-2 text-right">Reserva</th>
+                <th className="whitespace-nowrap pb-2 text-right">Total mês</th>
+                <th className="whitespace-nowrap pb-2 text-right">Próximo</th>
               </tr>
             </thead>
             <tbody>
               {mensalidadesTodos?.map((v) => (
                 <tr key={v.membro_id} className={v.membro_id === membroAtual?.id ? "bg-accent/60" : ""}>
-                  <td className="py-2 font-medium">{v.nome}</td>
-                  <td className="py-2 text-right">{formatarMoeda(v.custo_fixo_mes)}</td>
-                  <td className="py-2 text-right">{formatarMoeda(v.custo_variavel_mes)}</td>
-                  <td className="py-2 text-right">{formatarMoeda(v.reserva_emergencia_mes)}</td>
-                  <td className="py-2 text-right font-bold text-royal">{formatarMoeda(v.total_mes_atual)}</td>
-                  <td className="py-2 text-right">{formatarMoeda(v.total_proximo_mes)}</td>
+                  <td className="whitespace-nowrap py-2 font-medium">{v.nome}</td>
+                  <td className="whitespace-nowrap py-2 text-right">{formatarMoeda(v.custo_fixo_mes)}</td>
+                  <td className="whitespace-nowrap py-2 text-right">{formatarMoeda(v.custo_variavel_mes)}</td>
+                  <td className="whitespace-nowrap py-2 text-right">{formatarMoeda(v.reserva_emergencia_mes)}</td>
+                  <td className="whitespace-nowrap py-2 text-right font-bold text-royal">{formatarMoeda(v.total_mes_atual)}</td>
+                  <td className="whitespace-nowrap py-2 text-right">{formatarMoeda(v.total_proximo_mes)}</td>
                 </tr>
               ))}
             </tbody>
@@ -527,18 +527,18 @@ function SecaoProjecaoManutencao() {
           const primeira = linhas![0];
           return (
             <div key={manutencaoId} className="rounded-2xl border border-border/60 p-4">
-              <div className="mb-2 flex items-center justify-between">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                 <p className="text-[14px] font-bold">{primeira.descricao}</p>
-                <p className="text-[13px] font-bold text-royal">{primeira.custo_previsto > 0 ? formatarMoeda(primeira.custo_previsto) : "sem previsão"}</p>
+                <p className="whitespace-nowrap text-[13px] font-bold text-royal">{primeira.custo_previsto > 0 ? formatarMoeda(primeira.custo_previsto) : "sem previsão"}</p>
               </div>
               <p className="mb-2 text-[12px] text-muted-foreground">
                 {primeira.horas_usadas.toFixed(1)}h de {primeira.intervalo_horas.toFixed(1)}h neste ciclo (desde {formatarDataBR(primeira.data_inicio_ciclo)})
               </p>
               <div className="flex flex-col gap-1.5">
                 {linhas!.slice().sort((a, b) => b.horas - a.horas).map((l) => (
-                  <div key={l.membro_id} className={`flex justify-between rounded-xl px-2.5 py-1.5 text-[12.5px] ${l.membro_id === membroAtual?.id ? "bg-accent" : ""}`}>
-                    <span>{l.membro_nome}</span>
-                    <span className="font-semibold">{l.horas.toFixed(1)}h · {formatarMoeda(l.valor_estimado)}</span>
+                  <div key={l.membro_id} className={`flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5 text-[12.5px] ${l.membro_id === membroAtual?.id ? "bg-accent" : ""}`}>
+                    <span className="truncate">{l.membro_nome}</span>
+                    <span className="whitespace-nowrap font-semibold">{l.horas.toFixed(1)}h · {formatarMoeda(l.valor_estimado)}</span>
                   </div>
                 ))}
               </div>
