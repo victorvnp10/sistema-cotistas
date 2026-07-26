@@ -90,20 +90,24 @@ export default function Manutencao() {
   function abrirModalConcluir(m: Manutencao) {
     setModalConcluir(m);
     setDataFechamento(new Date().toISOString().slice(0, 10));
-    setCustoReal("");
+    setCustoReal(m.custo_previsto ? String(m.custo_previsto) : "");
     setReagendarDias("");
   }
 
   async function confirmarConclusao() {
     if (!modalConcluir) return;
+    if (!custoReal || Number(custoReal) <= 0) {
+      toast.erro("Informe o custo real da manutenção — é ele que é rateado entre os cotistas.");
+      return;
+    }
     try {
       await concluir.mutateAsync({
         manutencaoId: modalConcluir.id,
         dataFechamento,
-        custoReal: custoReal ? Number(custoReal) : undefined,
+        custoReal: Number(custoReal),
         reagendarDias: reagendarDias ? Number(reagendarDias) : undefined,
       });
-      toast.sucesso("Manutenção concluída!");
+      toast.sucesso("Manutenção concluída e custo rateado entre os cotistas!");
       setModalConcluir(null);
     } catch (e) {
       toast.erro(e instanceof Error ? e.message : "Erro ao concluir.");
@@ -170,11 +174,13 @@ export default function Manutencao() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label>Custo real gasto (R$) — opcional</Label>
+            <Label>Custo real gasto (R$)</Label>
             <Input type="number" min={0} step={0.01} value={custoReal} onChange={(e) => setCustoReal(e.target.value)} />
             <p className="text-[11.5px] text-muted-foreground">
-              Se informado, é rateado entre os cotistas pelas horas de uso registradas no Diário de Bordo
-              neste ciclo (ou por cotas, se ninguém registrou uso).
+              Pré-preenchido com o custo previsto — ajuste se o valor real foi diferente. É rateado entre os
+              cotistas proporcionalmente às horas de uso registradas no Diário de Bordo neste ciclo (ou por
+              cotas, se ninguém registrou uso), e cobrado na próxima mensalidade como custo de manutenção
+              periódica.
             </p>
           </div>
 
@@ -203,6 +209,7 @@ function ModalFormManutencao({ aberto, editando, horimetroAtual, aoFechar }: { a
   const [periodicidade, setPeriodicidade] = useState(editando?.periodicidade ?? "");
   const [proximaData, setProximaData] = useState(editando?.proxima_data ?? "");
   const [intervaloHoras, setIntervaloHoras] = useState(String(editando?.intervalo_horas ?? ""));
+  const [dataInicioCiclo, setDataInicioCiclo] = useState(editando?.data_inicio_ciclo ?? new Date().toISOString().slice(0, 10));
   const [horimetroBase, setHorimetroBase] = useState(String(editando?.horimetro_base ?? horimetroAtual));
   const [custoPrevisto, setCustoPrevisto] = useState(String(editando?.custo_previsto ?? ""));
   const [observacao, setObservacao] = useState(editando?.observacao ?? "");
@@ -215,6 +222,7 @@ function ModalFormManutencao({ aberto, editando, horimetroAtual, aoFechar }: { a
     setPeriodicidade(editando?.periodicidade ?? "");
     setProximaData(editando?.proxima_data ?? "");
     setIntervaloHoras(String(editando?.intervalo_horas ?? ""));
+    setDataInicioCiclo(editando?.data_inicio_ciclo ?? new Date().toISOString().slice(0, 10));
     setHorimetroBase(String(editando?.horimetro_base ?? horimetroAtual));
     setCustoPrevisto(String(editando?.custo_previsto ?? ""));
     setObservacao(editando?.observacao ?? "");
@@ -231,6 +239,7 @@ function ModalFormManutencao({ aberto, editando, horimetroAtual, aoFechar }: { a
         id: editando?.id, descricao,
         periodicidade: periodicidade || null, proxima_data: proximaData || null,
         intervalo_horas: intervaloHoras ? Number(intervaloHoras) : null,
+        data_inicio_ciclo: dataInicioCiclo,
         horimetro_base: horimetroBase !== "" ? Number(horimetroBase) : horimetroAtual,
         custo_previsto: custoPrevisto ? Number(custoPrevisto) : 0,
         observacao: observacao || null,
@@ -266,6 +275,17 @@ function ModalFormManutencao({ aberto, editando, horimetroAtual, aoFechar }: { a
           <div className="flex flex-col gap-1.5">
             <Label>Intervalo (horas)</Label>
             <Input type="number" min={1} value={intervaloHoras} onChange={(e) => setIntervaloHoras(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Início da contagem de horas</Label>
+            <Input type="date" value={dataInicioCiclo} onChange={(e) => setDataInicioCiclo(e.target.value)} />
+          </div>
+          <div className="col-span-2 flex flex-col gap-1.5 -mt-1">
+            <p className="text-[11.5px] text-muted-foreground">
+              A partir desta data o sistema soma as horas do Diário de Bordo pra este ciclo. Se essa
+              manutenção já vinha de antes e você só está cadastrando agora, ajuste para a data real em que
+              o ciclo começou — senão as horas de uso anteriores a hoje não contam.
+            </p>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Custo previsto (R$)</Label>
