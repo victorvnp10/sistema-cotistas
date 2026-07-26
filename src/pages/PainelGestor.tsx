@@ -24,7 +24,7 @@ export default function PainelGestor() {
     <div className="flex flex-col gap-4 pb-6">
       <Card className="no-print">
         <h2 className="mb-4 flex items-center gap-2 text-[15px] font-bold"><BarChart3 size={17} className="text-royal" /> Painel do Gestor</h2>
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-end">
           <div className="flex flex-col gap-1.5">
             <Label>Mês de referência</Label>
             <Input type="month" value={mesRefInput} onChange={(e) => setMesRefInput(e.target.value)} />
@@ -52,23 +52,23 @@ export default function PainelGestor() {
 
           <Card>
             <h2 className="mb-4 text-[15px] font-bold">Uso por cotista</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-[12.5px]">
+            <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+              <table className="w-full min-w-[620px] text-[12.5px]">
                 <thead>
                   <tr className="text-left text-[10px] font-bold uppercase text-muted-foreground">
-                    <th className="pb-2">Cotista</th><th className="pb-2">Úteis (m)</th><th className="pb-2">Todos (m)</th>
-                    <th className="pb-2">Úteis (a)</th><th className="pb-2">Todos (a)</th><th className="pb-2">Horas (m)</th>
-                    <th className="pb-2">Horas (a)</th><th className="pb-2">Combustível</th>
+                    <th className="whitespace-nowrap pb-2">Cotista</th><th className="whitespace-nowrap pb-2">Úteis (m)</th><th className="whitespace-nowrap pb-2">Todos (m)</th>
+                    <th className="whitespace-nowrap pb-2">Úteis (a)</th><th className="whitespace-nowrap pb-2">Todos (a)</th><th className="whitespace-nowrap pb-2">Horas (m)</th>
+                    <th className="whitespace-nowrap pb-2">Horas (a)</th><th className="whitespace-nowrap pb-2">Combustível</th>
                   </tr>
                 </thead>
                 <tbody>
                   {painel.porUsuario.map((u) => (
                     <tr key={u.membroId} className={!u.ativo ? "opacity-50" : ""}>
-                      <td className="py-1.5 font-medium">{u.nome}</td>
-                      <td className="py-1.5">{u.diasUteisMes}</td><td className="py-1.5">{u.diasTodosMes}</td>
-                      <td className="py-1.5">{u.diasUteisAno}</td><td className="py-1.5">{u.diasTodosAno}</td>
-                      <td className="py-1.5">{u.horasMes.toFixed(1)}h</td><td className="py-1.5">{u.horasAno.toFixed(1)}h</td>
-                      <td className="py-1.5">{formatarMoeda(u.custoCombustivelMes)}</td>
+                      <td className="whitespace-nowrap py-1.5 font-medium">{u.nome}</td>
+                      <td className="whitespace-nowrap py-1.5">{u.diasUteisMes}</td><td className="whitespace-nowrap py-1.5">{u.diasTodosMes}</td>
+                      <td className="whitespace-nowrap py-1.5">{u.diasUteisAno}</td><td className="whitespace-nowrap py-1.5">{u.diasTodosAno}</td>
+                      <td className="whitespace-nowrap py-1.5">{u.horasMes.toFixed(1)}h</td><td className="whitespace-nowrap py-1.5">{u.horasAno.toFixed(1)}h</td>
+                      <td className="whitespace-nowrap py-1.5">{formatarMoeda(u.custoCombustivelMes)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -95,27 +95,29 @@ export default function PainelGestor() {
             </div>
             {!!painel.custosVariaveis.manutencoesHoras.length && (
               <div className="overflow-x-auto">
-                <table className="w-full text-[12px]">
+              <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+                <table className="w-full min-w-[560px] text-[12px]">
                   <thead>
                     <tr className="text-left text-muted-foreground">
-                      <th className="pb-1">Descrição</th><th className="pb-1">Data</th><th className="pb-1">Início do ciclo</th>
-                      <th className="pb-1">Intervalo</th><th className="pb-1">Usadas</th><th className="pb-1">Restante</th><th className="pb-1">Previsto</th>
+                      <th className="whitespace-nowrap pb-1">Descrição</th><th className="whitespace-nowrap pb-1">Data</th><th className="whitespace-nowrap pb-1">Início do ciclo</th>
+                      <th className="whitespace-nowrap pb-1">Intervalo</th><th className="whitespace-nowrap pb-1">Usadas</th><th className="whitespace-nowrap pb-1">Restante</th><th className="whitespace-nowrap pb-1">Previsto</th>
                     </tr>
                   </thead>
                   <tbody>
                     {painel.custosVariaveis.manutencoesHoras.map((m, i) => (
                       <tr key={i} className={m.horasRestantes < 0 ? "bg-destructive/5" : ""}>
-                        <td className="py-1">{m.descricao}</td>
-                        <td className="py-1">{m.proximaData ? formatarDataBR(m.proximaData) : "—"}</td>
-                        <td className="py-1">{formatarDataBR(m.dataInicioCiclo)}</td>
-                        <td className="py-1">{m.intervaloHoras}h</td>
-                        <td className="py-1">{m.horasUsadas.toFixed(1)}h</td>
-                        <td className="py-1">{m.horasRestantes < 0 ? `venc. ${Math.abs(m.horasRestantes).toFixed(1)}h` : `${m.horasRestantes.toFixed(1)}h`}</td>
-                        <td className="py-1">{formatarMoeda(m.custoPrevisto)}</td>
+                        <td className="whitespace-nowrap py-1">{m.descricao}</td>
+                        <td className="whitespace-nowrap py-1">{m.proximaData ? formatarDataBR(m.proximaData) : "—"}</td>
+                        <td className="whitespace-nowrap py-1">{formatarDataBR(m.dataInicioCiclo)}</td>
+                        <td className="whitespace-nowrap py-1">{m.intervaloHoras}h</td>
+                        <td className="whitespace-nowrap py-1">{m.horasUsadas.toFixed(1)}h</td>
+                        <td className="whitespace-nowrap py-1">{m.horasRestantes < 0 ? `venc. ${Math.abs(m.horasRestantes).toFixed(1)}h` : `${m.horasRestantes.toFixed(1)}h`}</td>
+                        <td className="whitespace-nowrap py-1">{formatarMoeda(m.custoPrevisto)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
               </div>
             )}
           </Card>
@@ -176,8 +178,8 @@ export default function PainelGestor() {
             ) : (
               <div className="flex flex-col gap-2">
                 {painel.relatoriosPendentesTodos.map((p) => (
-                  <div key={p.membroId} className="flex justify-between text-[13.5px]">
-                    <span>{p.nome}</span>
+                  <div key={p.membroId} className="flex items-center justify-between gap-2 text-[13.5px]">
+                    <span className="truncate">{p.nome}</span>
                     <Badge variant="warning">{p.pendentes} pendente(s)</Badge>
                   </div>
                 ))}
@@ -195,9 +197,11 @@ function TabelaDiscriminado({ itens, cor }: { itens: { id: string; descricao: st
   return (
     <div className="flex flex-col gap-1.5">
       {itens.map((it) => (
-        <div key={it.id} className={`flex items-center justify-between rounded-xl px-2.5 py-1.5 text-[12.5px] ${it.previsto ? "bg-warning-soft" : ""}`}>
-          <span>{formatarDataBR(it.data)} · {it.descricao} {it.previsto && <Badge variant="warning">Previsto</Badge>}</span>
-          <span className={`font-bold ${cor}`}>{formatarMoeda(it.valor)}</span>
+        <div key={it.id} className={`flex items-start justify-between gap-2 rounded-xl px-2.5 py-1.5 text-[12.5px] ${it.previsto ? "bg-warning-soft" : ""}`}>
+          <span className="flex flex-wrap items-center gap-1">
+            {formatarDataBR(it.data)} · {it.descricao} {it.previsto && <Badge variant="warning">Previsto</Badge>}
+          </span>
+          <span className={`whitespace-nowrap font-bold ${cor}`}>{formatarMoeda(it.valor)}</span>
         </div>
       ))}
     </div>
