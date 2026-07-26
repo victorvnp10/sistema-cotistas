@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Wallet, PlusCircle, Repeat, CheckCircle2, Fuel, Clock } from "lucide-react";
+import { Wallet, PlusCircle, Repeat, CheckCircle2, Fuel, Droplet, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { useMembros } from "@/lib/queries/useMembros";
@@ -25,6 +25,12 @@ import {
   useDefinirCustoCombustivel,
   useEditarCustoCombustivelAtual,
 } from "@/lib/queries/useCombustivel";
+import {
+  useResumoOleo,
+  useDefinirCustoOleo,
+  useEditarCustoOleoAtual,
+  useFecharCustoOleo,
+} from "@/lib/queries/useOleo";
 import { useProjecaoManutencaoHoras } from "@/lib/queries/useManutencoes";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -102,6 +108,7 @@ export default function Orcamento() {
       </Card>
 
       {podeGerenciarOrcamento && <SecaoCombustivel />}
+      {podeGerenciarOrcamento && <SecaoOleo />}
       <SecaoProjecaoManutencao />
       {podeGerenciarOrcamento && <SecaoLancamentos />}
       {podeGerenciarOrcamento && <SecaoRecorrentes />}
@@ -501,6 +508,153 @@ function SecaoCombustivel() {
           <div className="mt-2 flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setModo(null)}>Cancelar</Button>
             <Button onClick={salvar} disabled={definir.isPending || editar.isPending}>Salvar</Button>
+          </div>
+        </div>
+      </Modal>
+    </Card>
+  );
+}
+
+function SecaoOleo() {
+  const toast = useToast();
+  const { data: galoes, isLoading } = useResumoOleo();
+  const definir = useDefinirCustoOleo();
+  const editar = useEditarCustoOleoAtual();
+  const fechar = useFecharCustoOleo();
+
+  const atual = galoes?.find((g) => !g.data_fim) ?? null;
+
+  const [modo, setModo] = useState<"novo" | "editar" | null>(null);
+  const [custoGalao, setCustoGalao] = useState("");
+  const [dataInicio, setDataInicio] = useState(new Date().toISOString().slice(0, 10));
+
+  const [modalFechar, setModalFechar] = useState<typeof atual>(null);
+  const [dataFim, setDataFim] = useState(new Date().toISOString().slice(0, 10));
+
+  function abrir(m: "novo" | "editar") {
+    if (m === "editar" && atual) {
+      setCustoGalao(String(atual.custo_galao));
+      setDataInicio(atual.data_inicio);
+    } else {
+      setCustoGalao("");
+      setDataInicio(new Date().toISOString().slice(0, 10));
+    }
+    setModo(m);
+  }
+
+  async function salvar() {
+    if (!custoGalao) { toast.erro("Preencha o custo do galão."); return; }
+    try {
+      if (modo === "editar" && atual) {
+        await editar.mutateAsync({ id: atual.id, custoGalao: Number(custoGalao), dataInicio });
+        toast.sucesso("Atualizado!");
+      } else {
+        await definir.mutateAsync({ custoGalao: Number(custoGalao), dataInicio });
+        toast.sucesso("Novo galão registrado!");
+      }
+      setModo(null);
+    } catch (e) {
+      toast.erro(e instanceof Error ? e.message : "Erro ao salvar.");
+    }
+  }
+
+  async function confirmarFechamento() {
+    if (!modalFechar) return;
+    try {
+      await fechar.mutateAsync({ id: modalFechar.id, dataFim });
+      toast.sucesso("Galão encerrado!");
+      setModalFechar(null);
+    } catch (e) {
+      toast.erro(e instanceof Error ? e.message : "Erro ao encerrar.");
+    }
+  }
+
+  return (
+    <Card>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-[15px] font-bold"><Droplet size={17} className="text-royal" /> Óleo</h2>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => abrir("editar")} disabled={!atual}>Editar</Button>
+          <Button size="sm" onClick={() => abrir("novo")}>Novo galão</Button>
+        </div>
+      </div>
+
+      {isLoading ? null : !galoes?.length ? (
+        <EmptyState titulo="Nenhum galão cadastrado" />
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {galoes.map((g) => (
+            <div key={g.id} className="rounded-2xl border border-border/60 bg-white p-3.5">
+              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                <p className="text-[13.5px] font-bold">{formatarMoeda(g.custo_galao)}</p>
+                {!g.data_fim ? (
+                  <Badge variant="info">Em uso</Badge>
+                ) : (
+                  <Badge variant="neutral">Encerrado</Badge>
+                )}
+              </div>
+              <p className="mt-1 text-[11.5px] text-muted-foreground">
+                {formatarDataBR(g.data_inicio)} até {g.data_fim ? formatarDataBR(g.data_fim) : "hoje"}
+              </p>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[12.5px]">
+                <span>{g.horas_consumidas.toFixed(1)}h consumidas</span>
+                <span className="font-semibold text-royal">
+                  {g.custo_por_hora !== null ? `${formatarMoeda(g.custo_por_hora)}/h` : "aguardando uso"}
+                </span>
+              </div>
+              {!g.data_fim && (
+                <button
+                  className="mt-2 text-[12px] font-bold text-royal hover:underline"
+                  onClick={() => { setModalFechar(g); setDataFim(new Date().toISOString().slice(0, 10)); }}
+                >
+                  Encerrar este galão
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="mt-3 text-[11.5px] text-muted-foreground">
+        O custo por hora é sempre calculado pelo uso real registrado no Diário de Bordo dentro do período de
+        cada galão — não é uma taxa fixa.
+      </p>
+
+      <Modal aberto={!!modo} aoFechar={() => setModo(null)} titulo={modo === "editar" ? "Editar galão atual" : "Novo galão"}>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label>Data de início</Label>
+            <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Custo do galão (R$)</Label>
+            <Input type="number" min={0} step={0.01} value={custoGalao} onChange={(e) => setCustoGalao(e.target.value)} />
+          </div>
+          {modo === "novo" && (
+            <p className="text-[11.5px] text-muted-foreground">
+              Se houver um galão em uso, ele é encerrado automaticamente na véspera desta data.
+            </p>
+          )}
+          <div className="mt-2 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setModo(null)}>Cancelar</Button>
+            <Button onClick={salvar} disabled={definir.isPending || editar.isPending}>Salvar</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal aberto={!!modalFechar} aoFechar={() => setModalFechar(null)} titulo="Encerrar galão">
+        <div className="flex flex-col gap-3">
+          <p className="text-[13.5px] text-muted-foreground">
+            Marque a data em que este galão realmente acabou (não precisa ser hoje).
+          </p>
+          <div className="flex flex-col gap-1.5">
+            <Label>Data de término</Label>
+            <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} />
+          </div>
+          <div className="mt-2 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setModalFechar(null)}>Cancelar</Button>
+            <Button variant="success" onClick={confirmarFechamento} disabled={fechar.isPending}>
+              {fechar.isPending ? "Encerrando..." : "Confirmar"}
+            </Button>
           </div>
         </div>
       </Modal>
