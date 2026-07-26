@@ -58,7 +58,7 @@ export default function PainelGestor() {
                   <tr className="text-left text-[10px] font-bold uppercase text-muted-foreground">
                     <th className="whitespace-nowrap pb-2">Cotista</th><th className="whitespace-nowrap pb-2">Úteis (m)</th><th className="whitespace-nowrap pb-2">Todos (m)</th>
                     <th className="whitespace-nowrap pb-2">Úteis (a)</th><th className="whitespace-nowrap pb-2">Todos (a)</th><th className="whitespace-nowrap pb-2">Horas (m)</th>
-                    <th className="whitespace-nowrap pb-2">Horas (a)</th><th className="whitespace-nowrap pb-2">Combustível</th>
+                    <th className="whitespace-nowrap pb-2">Horas (a)</th><th className="whitespace-nowrap pb-2">Óleo</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -68,7 +68,7 @@ export default function PainelGestor() {
                       <td className="whitespace-nowrap py-1.5">{u.diasUteisMes}</td><td className="whitespace-nowrap py-1.5">{u.diasTodosMes}</td>
                       <td className="whitespace-nowrap py-1.5">{u.diasUteisAno}</td><td className="whitespace-nowrap py-1.5">{u.diasTodosAno}</td>
                       <td className="whitespace-nowrap py-1.5">{u.horasMes.toFixed(1)}h</td><td className="whitespace-nowrap py-1.5">{u.horasAno.toFixed(1)}h</td>
-                      <td className="whitespace-nowrap py-1.5">{formatarMoeda(u.custoCombustivelMes)}</td>
+                      <td className="whitespace-nowrap py-1.5">{formatarMoeda(u.custoOleoMes)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -89,8 +89,8 @@ export default function PainelGestor() {
           <Card>
             <h2 className="mb-4 text-[15px] font-bold">Custos variáveis</h2>
             <div className="mb-4 grid grid-cols-1 gap-2.5 sm:grid-cols-3 [&>*]:min-w-0">
-              <StatCard titulo="Combustível / hora" valor={formatarMoeda(painel.custosVariaveis.custoCombustivelPorHora)} />
-              <StatCard titulo="Combustível (mês)" valor={formatarMoeda(painel.custosVariaveis.custoCombustivelTotalMes)} />
+              <StatCard titulo="Óleo / hora" valor={formatarMoeda(painel.custosVariaveis.custoOleoPorHora)} />
+              <StatCard titulo="Óleo (mês)" valor={formatarMoeda(painel.custosVariaveis.custoOleoTotalMes)} />
               <StatCard titulo="Rateios pendentes" valor={String(painel.custosVariaveis.rateiosPendentes)} />
             </div>
             {!!painel.custosVariaveis.manutencoesHoras.length && (
