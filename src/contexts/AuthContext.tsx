@@ -17,6 +17,8 @@ interface AuthContextValue {
   carregando: boolean;
   /** true assim que as membresias do usuário logado terminaram de ser buscadas (mesmo que vazias) */
   membresiasCarregadas: boolean;
+  /** true quando o usuário chegou aqui por um link de redefinição de senha por e-mail -- a UI deve bloquear tudo e pedir a senha nova antes de liberar o app */
+  emRecuperacaoSenha: boolean;
   session: Session | null;
   /** Grupo(s) a que o usuário logado pertence, com seu papel/cotas em cada um */
   membresias: (Membro & { grupo: Grupo })[];
@@ -28,6 +30,10 @@ interface AuthContextValue {
   ehAdmin: boolean;
   ehMaster: boolean;
   recarregarMembresias: () => Promise<void>;
+  /** Define uma nova senha para o usuário logado (self-service ou após clicar no link de recuperação) */
+  atualizarSenha: (novaSenha: string) => Promise<void>;
+  /** Envia um e-mail de redefinição de senha para o endereço informado (usado pelo admin para resetar a senha de outro cotista) */
+  enviarLinkRedefinicaoSenha: (email: string) => Promise<void>;
   sair: () => Promise<void>;
 }
 
@@ -36,6 +42,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [carregando, setCarregando] = useState(true);
   const [membresiasCarregadas, setMembresiasCarregadas] = useState(false);
+  const [emRecuperacaoSenha, setEmRecuperacaoSenha] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [membresias, setMembresias] = useState<(Membro & { grupo: Grupo })[]>([]);
   const [grupoIdSelecionado, setGrupoIdSelecionado] = useState<string | null>(
@@ -76,7 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCarregando(false);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, novaSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, novaSession) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setEmRecuperacaoSenha(true);
+      }
       setSession(novaSession);
     });
 
@@ -108,10 +118,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setGrupoIdSelecionado(grupoId);
   }
 
+  async function atualizarSenha(novaSenha: string) {
+    const { error } = await supabase.auth.updateUser({ password: novaSenha });
+    if (error) throw error;
+    setEmRecuperacaoSenha(false);
+  }
+
+  async function enviarLinkRedefinicaoSenha(email: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+    if (error) throw error;
+  }
+
   async function sair() {
     await supabase.auth.signOut();
     localStorage.removeItem("grupoIdSelecionado");
     setMembresiasCarregadas(false);
+    setEmRecuperacaoSenha(false);
   }
 
   const ehAdmin = membroAtual?.role === "admin";
@@ -122,6 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextValue = {
     carregando,
     membresiasCarregadas,
+    emRecuperacaoSenha,
     session,
     membresias,
     grupoAtual,
@@ -131,6 +156,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ehAdmin,
     ehMaster,
     recarregarMembresias: carregarMembresias,
+    atualizarSenha,
+    enviarLinkRedefinicaoSenha,
     sair,
   };
 
