@@ -274,6 +274,28 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["historico_custo_oleo"]["Insert"]>;
         Relationships: [];
       };
+      ajustes_horimetro: {
+        Row: {
+          id: string;
+          grupo_id: string;
+          data: string;
+          delta: number;
+          motivo: string | null;
+          criado_por: string | null;
+          criado_em: string;
+        };
+        Insert: {
+          id?: string;
+          grupo_id: string;
+          data?: string;
+          delta: number;
+          motivo?: string | null;
+          criado_por?: string | null;
+          criado_em?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["ajustes_horimetro"]["Insert"]>;
+        Relationships: [];
+      };
       diario_bordo: {
         Row: {
           id: string;
@@ -537,6 +559,16 @@ export interface Database {
       definir_custo_oleo: {
         Args: { p_grupo_id: string; p_custo_galao: number; p_data_inicio?: string };
         Returns: Database["public"]["Tables"]["historico_custo_oleo"]["Row"];
+      };
+      registrar_troca_horimetro: {
+        Args: {
+          p_grupo_id: string;
+          p_horas_reais_ate_troca: number;
+          p_leitura_aparelho_novo: number;
+          p_motivo?: string | null;
+          p_data?: string;
+        };
+        Returns: Database["public"]["Tables"]["ajustes_horimetro"]["Row"];
       };
       editar_custo_oleo_atual: {
         Args: { p_id: string; p_custo_galao: number; p_data_inicio: string };
