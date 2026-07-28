@@ -570,6 +570,10 @@ export interface Database {
         };
         Returns: Database["public"]["Tables"]["ajustes_horimetro"]["Row"];
       };
+      master_editar_nome_grupo: {
+        Args: { p_grupo_id: string; p_nome: string };
+        Returns: Database["public"]["Tables"]["grupos"]["Row"];
+      };
       editar_custo_oleo_atual: {
         Args: { p_id: string; p_custo_galao: number; p_data_inicio: string };
         Returns: void;
