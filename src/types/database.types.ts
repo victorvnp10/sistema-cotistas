@@ -296,6 +296,30 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["ajustes_horimetro"]["Insert"]>;
         Relationships: [];
       };
+      avisos_embarcacao: {
+        Row: {
+          id: string;
+          grupo_id: string;
+          mensagem: string;
+          criado_por: string | null;
+          criado_em: string;
+          resolvido: boolean;
+          resolvido_por: string | null;
+          resolvido_em: string | null;
+        };
+        Insert: {
+          id?: string;
+          grupo_id: string;
+          mensagem: string;
+          criado_por?: string | null;
+          criado_em?: string;
+          resolvido?: boolean;
+          resolvido_por?: string | null;
+          resolvido_em?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["avisos_embarcacao"]["Insert"]>;
+        Relationships: [];
+      };
       diario_bordo: {
         Row: {
           id: string;
