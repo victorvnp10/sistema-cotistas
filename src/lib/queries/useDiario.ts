@@ -103,6 +103,49 @@ export function useExcluirRegistroDiario() {
   });
 }
 
+export function useAjustesHorimetro() {
+  const { grupoAtual } = useAuth();
+  return useQuery({
+    queryKey: ["ajustes-horimetro", grupoAtual?.id],
+    enabled: !!grupoAtual,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ajustes_horimetro")
+        .select("*")
+        .eq("grupo_id", grupoAtual!.id)
+        .order("data", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function useRegistrarTrocaHorimetro() {
+  const queryClient = useQueryClient();
+  const { grupoAtual } = useAuth();
+  return useMutation({
+    mutationFn: async (payload: {
+      horasReaisAteTroca: number;
+      leituraAparelhoNovo: number;
+      motivo?: string;
+      data?: string;
+    }) => {
+      const { error } = await supabase.rpc("registrar_troca_horimetro", {
+        p_grupo_id: grupoAtual!.id,
+        p_horas_reais_ate_troca: payload.horasReaisAteTroca,
+        p_leitura_aparelho_novo: payload.leituraAparelhoNovo,
+        p_motivo: payload.motivo ?? null,
+        p_data: payload.data ?? new Date().toISOString().slice(0, 10),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ajustes-horimetro", grupoAtual?.id] });
+      queryClient.invalidateQueries({ queryKey: ["ultimo-horimetro", grupoAtual?.id] });
+    },
+  });
+}
+
 export function useRelatoriosPendentes(membroId: string | undefined) {
   return useQuery({
     queryKey: ["relatorios-pendentes", membroId],
