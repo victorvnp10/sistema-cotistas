@@ -16,9 +16,12 @@ import {
   KeyRound,
   LogOut,
   ChevronRight,
+  Megaphone,
+  AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
+import { useAvisosAtivos } from "@/lib/queries/useAvisos";
 import { Avatar } from "@/components/ui/avatar";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
@@ -30,6 +33,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const { grupoAtual, membroAtual, ehAdmin, ehMaster, podeGerenciarOrcamento, atualizarSenha, sair } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
+  const { data: avisosAtivos } = useAvisosAtivos();
   const [maisAberto, setMaisAberto] = useState(false);
   const [modalSenhaAberto, setModalSenhaAberto] = useState(false);
   const [novaSenha, setNovaSenha] = useState("");
@@ -45,6 +49,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   ];
 
   const itensMais = [
+    { to: "/avisos", label: "Avisos", icon: <Megaphone size={18} /> },
     { to: "/manutencao", label: "Manutenção", icon: <Wrench size={18} /> },
     { to: "/seguro", label: "Seguro", icon: <ShieldCheck size={18} /> },
     { to: "/informacoes", label: "Informações Úteis", icon: <Info size={18} /> },
@@ -88,6 +93,22 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <Avatar nome={membroAtual?.nome ?? "?"} destaque />
         </button>
       </header>
+
+      {!!avisosAtivos?.length && (
+        <button
+          onClick={() => navigate("/avisos")}
+          className="mx-auto block w-full max-w-2xl px-4 pt-2 text-left"
+        >
+          <div className="flex items-start gap-2 rounded-2xl border border-destructive/30 bg-destructive/10 px-3.5 py-2.5">
+            <AlertTriangle size={17} className="mt-0.5 shrink-0 text-destructive" />
+            <div className="min-w-0 flex-1">
+              {avisosAtivos.map((a) => (
+                <p key={a.id} className="truncate text-[13px] font-semibold text-destructive">{a.mensagem}</p>
+              ))}
+            </div>
+          </div>
+        </button>
+      )}
 
       <main className="mx-auto max-w-2xl px-4 pt-2">{children}</main>
 
