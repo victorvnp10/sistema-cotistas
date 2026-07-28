@@ -3,8 +3,47 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Gestão de Cotistas</title>
+
+    <!-- Cor de tema (Android + status bar do PWA) -->
+    <meta name="theme-color" content="#0d47a1" />
+
+    <!-- iOS: habilita modo standalone (some a barra do Safari ao abrir pela tela de início) -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Cotistas" />
+
+    <!-- iOS: ícone da tela de início (SVG não é confiável aqui, precisa ser PNG) -->
+    <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-167.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png" />
+    <link rel="apple-touch-icon" sizes="120x120" href="/icons/icon-120.png" />
+
+    <!--
+      iOS: splash screens estáticas. O iOS não gera isso sozinho a partir do
+      manifest — precisa de uma imagem por combinação de largura/altura
+      lógica + device-pixel-ratio. Cobre os aparelhos mais comuns em uso
+      hoje; se faltar algum modelo específico, o iOS cai para uma tela
+      branca lisa no lugar (não quebra nada, só fica sem a marca).
+    -->
+    <link rel="apple-touch-startup-image" href="/splash/splash-1320x2868-iphone16promax.png"
+      media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1290x2796-iphone16plus-15plus-14plus.png"
+      media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1206x2622-iphone16pro.png"
+      media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1179x2556-iphone16-15-14.png"
+      media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1170x2532-iphone13-12.png"
+      media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1125x2436-iphone11pro-x-xs.png"
+      media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-828x1792-iphone11-xr.png"
+      media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-750x1334-iphone-se.png"
+      media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" />
   </head>
   <body>
     <div id="root"></div>
