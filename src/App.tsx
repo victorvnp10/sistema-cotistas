@@ -13,6 +13,7 @@ import Manutencao from "@/pages/Manutencao";
 import Diario from "@/pages/Diario";
 import Seguro from "@/pages/Seguro";
 import Informacoes from "@/pages/Informacoes";
+import Avisos from "@/pages/Avisos";
 import PainelGestor from "@/pages/PainelGestor";
 import Administrador from "@/pages/Administrador";
 import DefinirNovaSenha from "@/pages/DefinirNovaSenha";
@@ -102,6 +103,7 @@ export default function App() {
                 <Route path="/diario" element={<Diario />} />
                 <Route path="/seguro" element={<Seguro />} />
                 <Route path="/informacoes" element={<Informacoes />} />
+                <Route path="/avisos" element={<Avisos />} />
                 <Route path="/painel-gestor" element={<PainelGestor />} />
                 {ehAdmin && <Route path="/cotistas" element={<Cotistas />} />}
                 {ehAdmin && <Route path="/feriados" element={<Feriados />} />}
