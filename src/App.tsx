@@ -50,10 +50,8 @@ export default function App() {
             <Navigate to="/login" replace />
           ) : ehMaster ? (
             <CriarGrupo />
-          ) : membresias.length > 0 ? (
-            <Navigate to="/" replace />
           ) : (
-            <Navigate to="/aguardando-convite" replace />
+            <Navigate to="/" replace />
           )
         }
       />
@@ -64,10 +62,22 @@ export default function App() {
             <Navigate to="/login" replace />
           ) : membresias.length > 0 ? (
             <Navigate to="/" replace />
-          ) : ehMaster ? (
-            <Navigate to="/criar-grupo" replace />
           ) : (
             <AguardandoConvite />
+          )
+        }
+      />
+      <Route
+        path="/administrador"
+        element={
+          !session ? (
+            <Navigate to="/login" replace />
+          ) : ehMaster ? (
+            <AppLayout>
+              <Administrador />
+            </AppLayout>
+          ) : (
+            <Navigate to="/" replace />
           )
         }
       />
@@ -77,7 +87,11 @@ export default function App() {
           !session ? (
             <Navigate to="/login" replace />
           ) : membresias.length === 0 ? (
-            <Navigate to={ehMaster ? "/criar-grupo" : "/aguardando-convite"} replace />
+            // Nunca redireciona pra /criar-grupo automaticamente, nem
+            // pro master -- essa tela só é alcançada clicando em
+            // Administração. Zero grupos, pra qualquer usuário, sempre
+            // cai na tela de espera.
+            <Navigate to="/aguardando-convite" replace />
           ) : (
             <AppLayout>
               <Routes>
@@ -91,7 +105,6 @@ export default function App() {
                 <Route path="/painel-gestor" element={<PainelGestor />} />
                 {ehAdmin && <Route path="/cotistas" element={<Cotistas />} />}
                 {ehAdmin && <Route path="/feriados" element={<Feriados />} />}
-                {ehMaster && <Route path="/administrador" element={<Administrador />} />}
               </Routes>
             </AppLayout>
           )
