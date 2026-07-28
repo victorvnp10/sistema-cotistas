@@ -2,10 +2,12 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import type { Database, Papel } from "@/types/database.types";
 import { MASTER_EMAIL } from "@/lib/constants";
@@ -40,6 +42,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [carregando, setCarregando] = useState(true);
   const [membresiasCarregadas, setMembresiasCarregadas] = useState(false);
   const [emRecuperacaoSenha, setEmRecuperacaoSenha] = useState(false);
@@ -48,6 +51,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [grupoIdSelecionado, setGrupoIdSelecionado] = useState<string | null>(
     () => localStorage.getItem("grupoIdSelecionado")
   );
+  // Guarda o ID do último usuário autenticado visto, só pra detectar troca
+  // de usuário dentro do listener -- não dispara re-render sozinho.
+  const ultimoUserIdRef = useRef<string | null>(null);
+
+  /**
+   * Limpa TUDO que pertence ao usuário anterior: membresias em memória,
+   * grupo selecionado (inclusive o localStorage) e o cache inteiro do
+   * React Query (dados de diário, orçamento, manutenção etc.). Chamado
+   * sempre que o listener de auth detecta troca de usuário -- login,
+   * logout, ou troca de sessão num dispositivo compartilhado -- nunca
+   * dependendo só do botão "Sair", que pode não ser o gatilho real.
+   */
+  function limparEstadoDoUsuarioAnterior() {
+    setMembresias([]);
+    setMembresiasCarregadas(false);
+    setGrupoIdSelecionado(null);
+    localStorage.removeItem("grupoIdSelecionado");
+    queryClient.clear();
+  }
 
   async function carregarMembresias() {
     const { data: userData } = await supabase.auth.getUser();
@@ -65,8 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq("user_id", userId);
 
     if (error) {
+      // Erro transitório (rede, token expirando etc.) -- NUNCA zera
+      // membresias aqui. Se zerasse, o roteador acharia que o usuário
+      // não pertence a grupo nenhum e o mandaria pra tela errada (esse
+      // era exatamente o bug de "voltar pra criar grupo" do nada).
       console.error("Erro ao carregar grupos do usuário:", error.message);
-      setMembresias([]);
       setMembresiasCarregadas(true);
       return;
     }
@@ -79,11 +104,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     supabase.auth.getSession().then(({ data }) => {
       if (!ativo) return;
+      ultimoUserIdRef.current = data.session?.user.id ?? null;
       setSession(data.session);
       setCarregando(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, novaSession) => {
+      const novoUserId = novaSession?.user.id ?? null;
+      if (novoUserId !== ultimoUserIdRef.current) {
+        // Trocou de usuário (login, logout, ou troca de sessão num
+        // dispositivo compartilhado) -- limpa tudo do usuário anterior
+        // ANTES de aceitar a nova sessão, pra nunca misturar dados.
+        limparEstadoDoUsuarioAnterior();
+        ultimoUserIdRef.current = novoUserId;
+      }
       if (event === "PASSWORD_RECOVERY") {
         setEmRecuperacaoSenha(true);
       }
@@ -133,9 +167,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function sair() {
     await supabase.auth.signOut();
-    localStorage.removeItem("grupoIdSelecionado");
-    setMembresiasCarregadas(false);
-    setEmRecuperacaoSenha(false);
+    // A limpeza de membresias, grupo selecionado e cache do React Query
+    // já acontece automaticamente no listener de auth acima, assim que
+    // ele detecta que o usuário virou null -- não duplica aqui.
   }
 
   const ehAdmin = membroAtual?.role === "admin";
