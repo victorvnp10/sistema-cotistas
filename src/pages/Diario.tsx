@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BookOpen, Gauge, Clock } from "lucide-react";
+import { BookOpen, Gauge, Clock, Settings2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import {
@@ -9,6 +9,8 @@ import {
   useResolverDiario,
   useExcluirRegistroDiario,
   useRelatoriosPendentes,
+  useAjustesHorimetro,
+  useRegistrarTrocaHorimetro,
 } from "@/lib/queries/useDiario";
 import { formatarDataBR } from "@/lib/ranking";
 import { Card } from "@/components/ui/card";
@@ -16,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Modal } from "@/components/ui/modal";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
@@ -30,9 +33,11 @@ export default function Diario() {
   const { data: entradas, isLoading } = useDiario();
   const { data: ultimoHorimetro } = useUltimoHorimetro();
   const { data: pendentes } = useRelatoriosPendentes(membroAtual?.id);
+  const { data: ajustes } = useAjustesHorimetro();
   const criar = useCriarRegistroDiario();
   const resolver = useResolverDiario();
   const excluir = useExcluirRegistroDiario();
+  const registrarTroca = useRegistrarTrocaHorimetro();
 
   const [titulo, setTitulo] = useState("");
   const [relato, setRelato] = useState("");
@@ -43,6 +48,39 @@ export default function Diario() {
   const [filtroStatus, setFiltroStatus] = useState<"todos" | "abertos" | "resolvidos">("todos");
   const [usoRotina, setUsoRotina] = useState(false);
   const [dataUso, setDataUso] = useState<string | null>(null);
+
+  const [modalTrocaAberto, setModalTrocaAberto] = useState(false);
+  const [horasReaisAteTroca, setHorasReaisAteTroca] = useState("");
+  const [leituraAparelhoNovo, setLeituraAparelhoNovo] = useState("0");
+  const [motivoTroca, setMotivoTroca] = useState("");
+  const [dataTroca, setDataTroca] = useState(new Date().toISOString().slice(0, 10));
+
+  function abrirModalTroca() {
+    setHorasReaisAteTroca(ultimoHorimetro ? String(ultimoHorimetro) : "");
+    setLeituraAparelhoNovo("0");
+    setMotivoTroca("");
+    setDataTroca(new Date().toISOString().slice(0, 10));
+    setModalTrocaAberto(true);
+  }
+
+  async function confirmarTroca() {
+    if (!horasReaisAteTroca || leituraAparelhoNovo === "") {
+      toast.erro("Preencha as horas reais até a troca e a leitura do aparelho novo.");
+      return;
+    }
+    try {
+      await registrarTroca.mutateAsync({
+        horasReaisAteTroca: Number(horasReaisAteTroca),
+        leituraAparelhoNovo: Number(leituraAparelhoNovo),
+        motivo: motivoTroca || undefined,
+        data: dataTroca,
+      });
+      toast.sucesso("Troca de aparelho registrada! O horímetro atual já reflete o ajuste.");
+      setModalTrocaAberto(false);
+    } catch (e) {
+      toast.erro(e instanceof Error ? e.message : "Erro ao registrar a troca.");
+    }
+  }
 
   function preencherPendente(data: string, periodo: string) {
     setTitulo(`Uso em ${formatarDataBR(data)} (${periodo === "M" ? "Manhã" : "Tarde"})`);
@@ -130,6 +168,29 @@ export default function Diario() {
         </div>
       </Card>
 
+      {podeGerenciarOrcamento && (
+        <Card>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-[15px] font-bold"><Settings2 size={17} className="text-royal" /> Horímetro</h2>
+            <Button size="sm" variant="outline" onClick={abrirModalTroca}>Registrar troca de aparelho</Button>
+          </div>
+          <p className="text-[12.5px] text-muted-foreground">
+            Horímetro atual: <strong>{(ultimoHorimetro ?? 0).toFixed(1)}h</strong>
+          </p>
+          {!!ajustes?.length && (
+            <div className="mt-3 flex flex-col gap-1.5 border-t border-border/60 pt-3">
+              <p className="text-[11.5px] font-bold uppercase tracking-wide text-muted-foreground">Histórico de ajustes</p>
+              {ajustes.map((a) => (
+                <div key={a.id} className="flex items-center justify-between gap-2 text-[12.5px]">
+                  <span className="text-muted-foreground">{formatarDataBR(a.data)} — {a.motivo}</span>
+                  <span className="font-semibold">{a.delta >= 0 ? "+" : ""}{a.delta.toFixed(1)}h</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+
       <Card>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-[15px] font-bold">Registros</h2>
@@ -174,6 +235,39 @@ export default function Diario() {
           </div>
         )}
       </Card>
+
+      <Modal aberto={modalTrocaAberto} aoFechar={() => setModalTrocaAberto(false)} titulo="Registrar troca de aparelho">
+        <div className="flex flex-col gap-3">
+          <p className="text-[13px] text-muted-foreground">
+            Use isto quando o aparelho físico de horímetro for substituído e passar a mostrar uma leitura
+            diferente (geralmente reiniciando do zero). As horas de manutenção e óleo já registradas
+            continuam corretas — isto só corrige o valor de referência do "horímetro atual".
+          </p>
+          <div className="flex flex-col gap-1.5">
+            <Label>Horas reais acumuladas até a troca</Label>
+            <Input type="number" step="0.1" value={horasReaisAteTroca} onChange={(e) => setHorasReaisAteTroca(e.target.value)} />
+            <p className="text-[11.5px] text-muted-foreground">Pré-preenchido com o horímetro atual do sistema.</p>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Leitura do aparelho novo, logo após a instalação</Label>
+            <Input type="number" step="0.1" value={leituraAparelhoNovo} onChange={(e) => setLeituraAparelhoNovo(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Data da troca</Label>
+            <Input type="date" value={dataTroca} onChange={(e) => setDataTroca(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Motivo (opcional)</Label>
+            <Input value={motivoTroca} onChange={(e) => setMotivoTroca(e.target.value)} placeholder="Ex: aparelho antigo quebrou" />
+          </div>
+          <div className="mt-2 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setModalTrocaAberto(false)}>Cancelar</Button>
+            <Button onClick={confirmarTroca} disabled={registrarTroca.isPending}>
+              {registrarTroca.isPending ? "Salvando..." : "Confirmar"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
