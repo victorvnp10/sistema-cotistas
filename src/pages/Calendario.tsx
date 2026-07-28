@@ -236,7 +236,12 @@ function ModalDia({ dataISO, aoFechar }: { dataISO: string; aoFechar: () => void
     }
   }
 
-  const podeAlterar = (donoId: string) => donoId === membroAtual?.id || ehAdmin;
+  const hojeISO = formatarDataISO(new Date());
+  const dataPassada = dataISO < hojeISO;
+  // Cotista só cancela reserva própria de hoje em diante; datas passadas
+  // só o admin (mesma regra aplicada no banco via RLS -- isto aqui é só
+  // pra não mostrar um botão que o Supabase vai recusar).
+  const podeAlterar = (donoId: string) => ehAdmin || (donoId === membroAtual?.id && !dataPassada);
 
   return (
     <Modal aberto aoFechar={aoFechar} titulo={dataISO.split("-").reverse().join("/")}>
@@ -247,8 +252,12 @@ function ModalDia({ dataISO, aoFechar }: { dataISO: string; aoFechar: () => void
             {res ? (
               <div className="flex items-center gap-2">
                 <span className="text-[13.5px]">{membros?.find((m) => m.id === res.membro_id)?.nome}</span>
-                {podeAlterar(res.membro_id) && (
+                {podeAlterar(res.membro_id) ? (
                   <Button size="sm" variant="destructive" onClick={() => cancelarReserva(res.id)}>Cancelar</Button>
+                ) : (
+                  dataPassada && res.membro_id === membroAtual?.id && (
+                    <span className="text-[11px] text-muted-foreground">Só o admin cancela data passada</span>
+                  )
                 )}
               </div>
             ) : (
