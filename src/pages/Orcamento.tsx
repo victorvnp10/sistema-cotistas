@@ -51,13 +51,16 @@ export default function Orcamento() {
   const { data: mensalidade } = useMensalidadeMembro(membroAtual?.id);
   const { data: mensalidadesTodos } = useMensalidadesTodos();
 
+  const custoVariavelMes = mensalidadesTodos?.reduce((acc, v) => acc + v.custo_variavel_mes, 0) ?? 0;
+
   const termoCota = grupoAtual?.termo_cota ?? "cota";
 
   return (
     <div className="flex flex-col gap-4 pb-6">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 [&>*]:min-w-0">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 [&>*]:min-w-0">
         <StatCard titulo="Saldo atual" valor={formatarMoeda(saldoAtual ?? 0)} icon={<Wallet size={16} />} destaque />
         <StatCard titulo="Custo fixo do mês" valor={formatarMoeda(custoFixoMes ?? 0)} />
+        <StatCard titulo="Custo variável do mês" valor={formatarMoeda(custoVariavelMes)} />
         <StatCard titulo="Reserva de emergência" valor={formatarMoeda(mensalidade?.mesAtual.reservaEmergencia ?? 0)} />
       </div>
 
