@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Wallet, PlusCircle, Repeat, CheckCircle2, Droplet, Clock } from "lucide-react";
+import { Wallet, PlusCircle, Repeat, CheckCircle2, Droplet, Clock, Pencil } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { useMembros } from "@/lib/queries/useMembros";
@@ -8,6 +8,7 @@ import { formatarDataBR } from "@/lib/ranking";
 import {
   useLancamentos,
   useCriarLancamento,
+  useEditarLancamento,
   useExcluirLancamento,
   useRecorrentes,
   useCriarRecorrente,
@@ -40,6 +41,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import type { Database, TipoLancamento } from "@/types/database.types";
 
 type Recorrente = Database["public"]["Tables"]["recorrentes"]["Row"];
+type Lancamento = Database["public"]["Tables"]["lancamentos"]["Row"];
 type ResumoOleoItem = Database["public"]["Functions"]["resumo_custo_oleo"]["Returns"][number];
 
 export default function Orcamento() {
@@ -156,20 +158,48 @@ function SecaoLancamentos() {
   const toast = useToast();
   const { data: lancamentos, isLoading } = useLancamentos();
   const criar = useCriarLancamento();
+  const editar = useEditarLancamento();
   const excluir = useExcluirLancamento();
   const [modalAberto, setModalAberto] = useState(false);
+  const [editando, setEditando] = useState<Lancamento | null>(null);
+  const [paraExcluir, setParaExcluir] = useState<Lancamento | null>(null);
 
   const [tipo, setTipo] = useState<TipoLancamento>("receita");
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
   const [data, setData] = useState(new Date().toISOString().slice(0, 10));
 
+  function abrirNovo() {
+    setEditando(null);
+    setTipo("receita");
+    setDescricao("");
+    setValor("");
+    setData(new Date().toISOString().slice(0, 10));
+    setModalAberto(true);
+  }
+
+  function abrirEdicao(l: Lancamento) {
+    setEditando(l);
+    setTipo(l.tipo);
+    setDescricao(l.descricao);
+    // Receita é editada por valor-por-cota (igual na criação); despesa é o valor total.
+    setValor(String(l.tipo === "receita" ? (l.valor_por_cota ?? l.valor) : l.valor));
+    setData(l.data);
+    setModalAberto(true);
+  }
+
   async function salvar() {
     if (!descricao || !valor) { toast.erro("Preencha descrição e valor."); return; }
     try {
-      await criar.mutateAsync({ tipo, descricao, valor: Number(valor), data });
-      toast.sucesso("Lançamento salvo!");
+      if (editando) {
+        await editar.mutateAsync({ id: editando.id, descricao, valor: Number(valor), data });
+        toast.sucesso("Lançamento atualizado!");
+      } else {
+        await criar.mutateAsync({ tipo, descricao, valor: Number(valor), data });
+        toast.sucesso("Lançamento salvo!");
+      }
       setModalAberto(false);
+      setEditando(null);
       setDescricao("");
       setValor("");
     } catch (e) {
@@ -177,10 +207,12 @@ function SecaoLancamentos() {
     }
   }
 
-  async function remover(id: string) {
+  async function confirmarExclusao() {
+    if (!paraExcluir) return;
     try {
-      await excluir.mutateAsync(id);
+      await excluir.mutateAsync(paraExcluir.id);
       toast.sucesso("Lançamento excluído.");
+      setParaExcluir(null);
     } catch (e) {
       toast.erro(e instanceof Error ? e.message : "Erro ao excluir.");
     }
@@ -190,7 +222,7 @@ function SecaoLancamentos() {
     <Card>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-[15px] font-bold"><PlusCircle size={17} className="text-royal" /> Lançamentos</h2>
-        <Button size="sm" onClick={() => setModalAberto(true)}>Novo</Button>
+        <Button size="sm" onClick={abrirNovo}>Novo</Button>
       </div>
       {isLoading ? null : !lancamentos?.length ? (
         <EmptyState titulo="Nenhum lançamento ainda" />
@@ -207,7 +239,14 @@ function SecaoLancamentos() {
                   <span className={`text-[13.5px] font-bold ${l.tipo === "receita" ? "text-success" : "text-destructive"}`}>
                     {formatarMoeda(l.valor)}
                   </span>
-                  <button onClick={() => remover(l.id)} className="text-[12px] font-bold text-destructive hover:underline">×</button>
+                  {l.origem === "manual" && (
+                    <>
+                      <button onClick={() => abrirEdicao(l)} className="text-muted-foreground hover:text-royal" aria-label="Editar">
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={() => setParaExcluir(l)} className="text-[12px] font-bold text-destructive hover:underline">×</button>
+                    </>
+                  )}
                 </div>
               }
             />
@@ -215,15 +254,22 @@ function SecaoLancamentos() {
         </div>
       )}
 
-      <Modal aberto={modalAberto} aoFechar={() => setModalAberto(false)} titulo="Novo lançamento">
+      <Modal aberto={modalAberto} aoFechar={() => setModalAberto(false)} titulo={editando ? "Editar lançamento" : "Novo lançamento"}>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <Label>Tipo</Label>
-            <SegmentedControl
-              opcoes={[{ valor: "receita", label: "Receita" }, { valor: "despesa", label: "Despesa" }]}
-              valor={tipo}
-              aoMudar={setTipo}
-            />
+            {editando ? (
+              <div className="flex items-center gap-2">
+                <Badge variant={tipo === "receita" ? "success" : "error"}>{tipo === "receita" ? "Receita" : "Despesa"}</Badge>
+                <p className="text-[11.5px] text-muted-foreground">Não pode ser alterado — exclua e crie um novo se precisar trocar.</p>
+              </div>
+            ) : (
+              <SegmentedControl
+                opcoes={[{ valor: "receita", label: "Receita" }, { valor: "despesa", label: "Despesa" }]}
+                valor={tipo}
+                aoMudar={setTipo}
+              />
+            )}
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Descrição</Label>
@@ -239,7 +285,24 @@ function SecaoLancamentos() {
           </div>
           <div className="mt-2 flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setModalAberto(false)}>Cancelar</Button>
-            <Button onClick={salvar} disabled={criar.isPending}>{criar.isPending ? "Salvando..." : "Salvar"}</Button>
+            <Button onClick={salvar} disabled={criar.isPending || editar.isPending}>
+              {criar.isPending || editar.isPending ? "Salvando..." : "Salvar"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal aberto={!!paraExcluir} aoFechar={() => setParaExcluir(null)} titulo="Excluir lançamento?">
+        <div className="flex flex-col gap-3">
+          <p className="text-[13.5px] text-muted-foreground">
+            Tem certeza que quer excluir <strong>{paraExcluir?.descricao}</strong>
+            {paraExcluir && ` (${formatarMoeda(paraExcluir.valor)}, ${formatarDataBR(paraExcluir.data)})`}? Essa ação não pode ser desfeita.
+          </p>
+          <div className="mt-2 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setParaExcluir(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmarExclusao} disabled={excluir.isPending}>
+              {excluir.isPending ? "Excluindo..." : "Excluir"}
+            </Button>
           </div>
         </div>
       </Modal>
