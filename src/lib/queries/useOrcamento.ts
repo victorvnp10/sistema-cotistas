@@ -46,6 +46,30 @@ export function useCriarLancamento() {
   });
 }
 
+export function useEditarLancamento() {
+  const queryClient = useQueryClient();
+  const { grupoAtual } = useAuth();
+  return useMutation({
+    mutationFn: async (payload: {
+      id: string;
+      descricao: string;
+      valor: number;
+      data: string;
+      observacao?: string;
+    }) => {
+      const { error } = await supabase.rpc("editar_lancamento", {
+        p_id: payload.id,
+        p_descricao: payload.descricao,
+        p_valor: payload.valor,
+        p_data: payload.data,
+        p_observacao: payload.observacao ?? null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => invalidarTudoOrcamento(queryClient, grupoAtual?.id),
+  });
+}
+
 export function useExcluirLancamento() {
   const queryClient = useQueryClient();
   const { grupoAtual } = useAuth();
