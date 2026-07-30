@@ -530,6 +530,16 @@ export interface Database {
         };
         Returns: Database["public"]["Tables"]["lancamentos"]["Row"];
       };
+      editar_lancamento: {
+        Args: {
+          p_id: string;
+          p_descricao: string;
+          p_valor: number;
+          p_data: string;
+          p_observacao?: string | null;
+        };
+        Returns: Database["public"]["Tables"]["lancamentos"]["Row"];
+      };
       alterar_valor_recorrente: {
         Args: { p_recorrente_id: string; p_novo_valor: number };
         Returns: void;
