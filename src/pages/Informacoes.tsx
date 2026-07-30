@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Info, X, Copy, ExternalLink, Eye, AlertTriangle } from "lucide-react";
+import { Info, X, Copy, ExternalLink, Eye, AlertTriangle, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { useInformacoes, useSalvarInformacao, useExcluirInformacao } from "@/lib/queries/useInformacoes";
@@ -75,6 +75,11 @@ export default function Informacoes() {
       window.open(info.valor, "_blank", "noopener,noreferrer");
       return;
     }
+    if (info.categoria === "Procedimento") {
+      // Procedimento é pra ler, não pra copiar.
+      setVisualizando(info);
+      return;
+    }
     // Contato, PIX, senha etc. — copia direto
     copiar(info.valor);
   }
@@ -91,15 +96,30 @@ export default function Informacoes() {
       <Card>
         <h2 className="mb-4 flex items-center gap-2 text-[15px] font-bold"><Info size={17} className="text-royal" /> Nova informação</h2>
         <div className="flex flex-col gap-3">
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label>Categoria</Label>
               <select className="h-12 rounded-2xl border border-input bg-white px-3 text-[16px]" value={categoria} onChange={(e) => setCategoria(e.target.value as CategoriaInformacao)}>
                 {CATEGORIAS.map((c) => <option key={c} value={c}>{LABEL_CATEGORIA[c]}</option>)}
               </select>
             </div>
-            <div className="flex flex-col gap-1.5"><Label>Rótulo</Label><Input value={rotulo} onChange={(e) => setRotulo(e.target.value)} placeholder="Ex: Marina - telefone" /></div>
-            <div className="flex flex-col gap-1.5"><Label>Valor</Label><Input value={valor} onChange={(e) => setValor(e.target.value)} placeholder="Telefone, PIX, link, documento..." /></div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Rótulo</Label>
+              <Input value={rotulo} onChange={(e) => setRotulo(e.target.value)} placeholder="Ex: Marina - telefone" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Valor</Label>
+            {categoria === "Procedimento" ? (
+              <textarea
+                className="min-h-[110px] rounded-2xl border border-input bg-white p-3.5 text-[15px] focus-visible:outline-none focus-visible:border-royal focus-visible:ring-4 focus-visible:ring-royal/10"
+                value={valor}
+                onChange={(e) => setValor(e.target.value)}
+                placeholder="Descreva o procedimento passo a passo..."
+              />
+            ) : (
+              <Input value={valor} onChange={(e) => setValor(e.target.value)} placeholder="Telefone, PIX, link, documento..." />
+            )}
           </div>
           <div className="flex flex-col gap-1.5"><Label>Observação (opcional)</Label><Input value={observacao} onChange={(e) => setObservacao(e.target.value)} /></div>
           <Button onClick={adicionar} disabled={salvar.isPending} className="self-start">Adicionar</Button>
@@ -109,13 +129,16 @@ export default function Informacoes() {
       <Card>
         <h2 className="mb-4 text-[15px] font-bold">Informações cadastradas</h2>
         <p className="mb-4 -mt-2 text-[11.5px] text-muted-foreground">
-          Toque em documentos/vídeos para visualizar, em links para abrir, e em contatos/PIX para copiar.
+          Toque em documentos/vídeos para visualizar, em procedimentos para ler, em links para abrir, e em
+          contatos/PIX para copiar.
         </p>
         {isLoading ? null : !informacoes?.length ? (
           <EmptyState titulo="Nenhuma informação cadastrada" />
         ) : (
           <div className="flex flex-col gap-5">
-            {[...agrupado.entries()].map(([cat, lista]) => (
+            {CATEGORIAS.filter((cat) => agrupado.get(cat)?.length).map((cat) => {
+              const lista = agrupado.get(cat)!;
+              return (
               <div key={cat}>
                 <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{LABEL_CATEGORIA[cat]}</p>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -123,7 +146,8 @@ export default function Informacoes() {
                     const driveId = extrairDriveFileId(info.valor);
                     const youtubeId = extrairYoutubeId(info.valor);
                     const isLink = ehUrl(info.valor);
-                    const Icone = driveId || youtubeId ? Eye : isLink ? ExternalLink : Copy;
+                    const isProcedimentoTexto = info.categoria === "Procedimento" && !driveId && !youtubeId && !isLink;
+                    const Icone = driveId || youtubeId ? Eye : isLink ? ExternalLink : isProcedimentoTexto ? FileText : Copy;
                     return (
                       <button
                         key={info.id}
@@ -132,7 +156,7 @@ export default function Informacoes() {
                       >
                         <div className="min-w-0 flex-1">
                           <p className="text-[10px] font-bold uppercase text-muted-foreground">{info.rotulo}</p>
-                          <p className="truncate text-[14px] font-semibold">{info.valor}</p>
+                          <p className={isProcedimentoTexto ? "line-clamp-2 text-[13.5px] font-medium text-foreground/90" : "truncate text-[14px] font-semibold"}>{info.valor}</p>
                           {info.observacao && <p className="truncate text-[11.5px] text-muted-foreground">{info.observacao}</p>}
                         </div>
                         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-accent text-royal">
@@ -152,35 +176,51 @@ export default function Informacoes() {
                   })}
                 </div>
               </div>
-            ))}
+            );})}
           </div>
         )}
       </Card>
 
-      {/* Visualização rápida de documentos/vídeos */}
+      {/* Visualização rápida de documentos/vídeos/procedimentos em texto */}
       <Modal aberto={!!visualizando} aoFechar={() => setVisualizando(null)} titulo={visualizando?.rotulo ?? ""} className="sm:max-w-2xl">
         {visualizando && (
-          <div className="flex flex-col gap-3">
-            <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black">
-              {extrairYoutubeId(visualizando.valor) ? (
-                <iframe
-                  className="h-full w-full"
-                  src={`https://www.youtube.com/embed/${extrairYoutubeId(visualizando.valor)}`}
-                  allow="autoplay; encrypted-media; picture-in-picture"
-                  allowFullScreen
-                />
-              ) : (
-                <iframe
-                  className="h-full w-full"
-                  src={`https://drive.google.com/file/d/${extrairDriveFileId(visualizando.valor)}/preview`}
-                  allow="autoplay"
-                />
-              )}
+          extrairYoutubeId(visualizando.valor) || extrairDriveFileId(visualizando.valor) ? (
+            <div className="flex flex-col gap-3">
+              <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black">
+                {extrairYoutubeId(visualizando.valor) ? (
+                  <iframe
+                    className="h-full w-full"
+                    src={`https://www.youtube.com/embed/${extrairYoutubeId(visualizando.valor)}`}
+                    allow="autoplay; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <iframe
+                    className="h-full w-full"
+                    src={`https://drive.google.com/file/d/${extrairDriveFileId(visualizando.valor)}/preview`}
+                    allow="autoplay"
+                  />
+                )}
+              </div>
+              <Button variant="outline" onClick={() => window.open(visualizando.valor, "_blank", "noopener,noreferrer")}>
+                <ExternalLink size={16} /> Abrir em nova aba
+              </Button>
             </div>
-            <Button variant="outline" onClick={() => window.open(visualizando.valor, "_blank", "noopener,noreferrer")}>
-              <ExternalLink size={16} /> Abrir em nova aba
-            </Button>
-          </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {visualizando.observacao && (
+                <p className="text-[12.5px] text-muted-foreground">{visualizando.observacao}</p>
+              )}
+              <div className="max-h-[60vh] overflow-y-auto rounded-2xl bg-secondary/50 p-4">
+                <p className="whitespace-pre-wrap text-[15.5px] leading-relaxed text-foreground">
+                  {visualizando.valor}
+                </p>
+              </div>
+              <Button variant="outline" onClick={() => copiar(visualizando.valor)}>
+                <Copy size={16} /> Copiar texto
+              </Button>
+            </div>
+          )
         )}
       </Modal>
 
