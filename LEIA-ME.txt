@@ -1,0 +1,38 @@
+CORREÇÃO: convite de cotistas preso + login com Google
+=========================================================
+
+O que tem aqui dentro (5 arquivos, com os mesmos caminhos do projeto):
+
+  src/pages/Login.tsx                                  -> botão "Continuar com Google"
+  src/pages/Cotistas.tsx                                -> mensagens de convite mencionam Google
+  supabase/migrations/0009_convite_case_insensitive.sql -> reconstrói migração corrompida
+  supabase/migrations/0021_vincular_convite_bidirecional.sql -> corrige o bug do convite preso
+  README.md                                             -> instruções de configuração do Google OAuth
+
+COMO APLICAR
+------------
+1. Extraia este zip DENTRO da pasta raiz do projeto "sistema-cotistas" no
+   seu computador, sobrescrevendo os arquivos existentes com o mesmo nome.
+
+2. Apague estes 3 arquivos da RAIZ do projeto (não confundir com os que
+   estão dentro de supabase/migrations/ -- esses ficam). Eles estavam
+   corrompidos (continham código de componente React em vez de SQL) e
+   não são usados pelo app:
+     0009_convite_case_insensitive.sql   (na raiz)
+     0009_seguro_editar.sql              (na raiz)
+     0010_editar_seguro.sql              (na raiz)
+
+3. Rode este SQL no SQL Editor do Supabase (já apliquei no seu banco de
+   produção, então isso é só para manter o histórico de migrações do
+   projeto em sincronia -- não precisa rodar de novo se não quiser):
+     supabase/migrations/0021_vincular_convite_bidirecional.sql
+
+4. Commit e push:
+     git add -A
+     git commit -m "Corrige vínculo de convite preso e adiciona login com Google"
+     git push origin claude/invite-registration-system-nvecrm
+
+IMPORTANTE: para o botão "Continuar com Google" funcionar de verdade,
+ainda falta habilitar o provedor Google no painel do Supabase (não dá
+pra fazer isso por código). O passo a passo está no README.md, na seção
+"Correção do convite de cotistas + login com Google".

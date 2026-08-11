@@ -107,7 +107,11 @@ function ModalCotista({ aberto, aoFechar, membro }: { aberto: boolean; aoFechar:
     }
     try {
       await salvar.mutateAsync({ id: membro?.id, nome, email, telefone: telefone || null, role, cotas, ativo });
-      toast.sucesso(membro ? "Cotista atualizado!" : "Convite criado! Peça para a pessoa se cadastrar com este e-mail.");
+      toast.sucesso(
+        membro
+          ? "Cotista atualizado!"
+          : "Convite criado! Peça para a pessoa se cadastrar com este e-mail (ou entrar direto com Google usando o mesmo e-mail)."
+      );
       aoFechar();
     } catch (e) {
       toast.erro(e instanceof Error ? e.message : "Erro ao salvar.");
@@ -124,7 +128,11 @@ function ModalCotista({ aberto, aoFechar, membro }: { aberto: boolean; aoFechar:
         <div className="flex flex-col gap-1.5">
           <Label>E-mail</Label>
           <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!!membro} />
-          {!membro && <p className="text-[12px] text-muted-foreground">A pessoa deve se cadastrar com exatamente este e-mail.</p>}
+          {!membro && (
+            <p className="text-[12px] text-muted-foreground">
+              A pessoa deve se cadastrar (ou entrar com Google) usando exatamente este e-mail.
+            </p>
+          )}
         </div>
         <div className="flex flex-col gap-1.5">
           <Label>Telefone</Label>

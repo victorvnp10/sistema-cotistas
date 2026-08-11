@@ -125,6 +125,54 @@ nenhum.
 ⚠️ **Você precisa rodar mais um arquivo SQL** para ativar essa proteção:
 `supabase/migrations/0008_grupo_apenas_master.sql`
 
+## Correção do convite de cotistas + login com Google (rodada atual)
+
+### Bug corrigido: cotista convidado ficava preso em "Aguardando convite"
+O gatilho que vincula a conta de login ao registro de convite só rodava
+numa direção: quando a CONTA era criada depois do convite. Se a pessoa já
+tinha uma conta (ou criou antes do admin registrar o convite), o vínculo
+nunca acontecia — ela conseguia logar normalmente, mas o app não achava
+nenhum grupo pra ela e mostrava "Aguardando convite" pra sempre, mesmo
+sendo cotista de verdade. Foi exatamente esse o bug relatado, e um
+cotista real ficou preso nele.
+
+Corrigido com `supabase/migrations/0021_vincular_convite_bidirecional.sql`:
+agora o vínculo é tentado nos dois sentidos, então a ordem entre "criar
+convite" e "criar conta" deixou de importar. A migração também conserta
+retroativamente quem já tinha ficado preso.
+
+⚠️ **Rode este arquivo no SQL Editor do Supabase**:
+`supabase/migrations/0021_vincular_convite_bidirecional.sql`
+
+(O arquivo `0009_convite_case_insensitive.sql` também foi reconstruído
+nesta rodada — o que existia antes com esse nome estava corrompido no
+repositório, mas o efeito dele já estava aplicado em produção.)
+
+### Login com Google
+A tela de login agora tem um botão "Continuar com Google", além do
+e-mail/senha. Ele usa o mesmo mecanismo de convite: a pessoa entra com a
+conta Google que usa o e-mail exato do convite, e o vínculo acontece
+automaticamente (mesmo gatilho da correção acima).
+
+Para o botão funcionar, é preciso habilitar o provedor Google **no painel
+do Supabase** (isso não dá pra fazer por SQL/código):
+
+1. No [Google Cloud Console](https://console.cloud.google.com/apis/credentials),
+   crie uma credencial OAuth 2.0 do tipo "Aplicativo Web".
+   - **Origens JavaScript autorizadas**: a URL onde o app roda (ex.:
+     `https://seu-app.vercel.app`, e `http://localhost:5173` para testar local).
+   - **URI de redirecionamento autorizado**:
+     `https://oniaznwsevpkvvspitie.supabase.co/auth/v1/callback`
+2. No painel do Supabase → **Authentication → Providers → Google**,
+   ative o provedor e cole o **Client ID** e o **Client Secret** gerados.
+3. Em **Authentication → URL Configuration**, confira que a **Site URL**
+   e as **Redirect URLs** incluem a URL real onde o app está publicado
+   (senão o Google redireciona de volta pra um endereço errado depois do
+   login).
+
+Enquanto o provedor não estiver configurado, o botão mostra o erro
+retornado pelo Supabase em vez de travar silenciosamente.
+
 ## Ajustes de responsividade
 
 - Todos os campos de formulário (texto, seleção, área de texto) agora
