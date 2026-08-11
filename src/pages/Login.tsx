@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Anchor, Mail, Lock } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,13 +23,15 @@ function GoogleIcon() {
 
 export default function Login() {
   const navigate = useNavigate();
+  const { enviarLinkRedefinicaoSenha } = useAuth();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [modo, setModo] = useState<"entrar" | "cadastrar">("entrar");
+  const [modo, setModo] = useState<"entrar" | "cadastrar" | "recuperar">("entrar");
   const [carregando, setCarregando] = useState(false);
   const [carregandoGoogle, setCarregandoGoogle] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [avisoCadastro, setAvisoCadastro] = useState<string | null>(null);
+  const [avisoRecuperacao, setAvisoRecuperacao] = useState<string | null>(null);
 
   // O Supabase redireciona de volta com ?error=...&error_description=...
   // quando o login com Google falha (ex.: provedor não configurado no
@@ -63,6 +66,19 @@ export default function Login() {
     setErro(null);
     setAvisoCadastro(null);
     setCarregando(true);
+
+    if (modo === "recuperar") {
+      try {
+        await enviarLinkRedefinicaoSenha(email);
+        setAvisoRecuperacao(
+          "Se esse e-mail tiver uma conta, enviamos um link para redefinir a senha. Confira sua caixa de entrada."
+        );
+      } catch (e) {
+        setErro(e instanceof Error ? e.message : "Erro ao enviar o link.");
+      }
+      setCarregando(false);
+      return;
+    }
 
     if (modo === "entrar") {
       const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
@@ -102,7 +118,7 @@ export default function Login() {
             <div className="text-center">
               <h1 className="text-[22px] font-extrabold tracking-tight">Gestão de Cotistas</h1>
               <p className="mt-1 text-[13px] text-muted-foreground">
-                {modo === "entrar" ? "Entre com sua conta" : "Crie sua conta"}
+                {modo === "entrar" ? "Entre com sua conta" : modo === "cadastrar" ? "Crie sua conta" : "Recupere sua senha"}
               </p>
             </div>
 
@@ -119,19 +135,38 @@ export default function Login() {
                   placeholder="seu@email.com"
                 />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Senha</Label>
-                <Input
-                  icon={<Lock size={17} />}
-                  type="password"
-                  autoComplete={modo === "entrar" ? "current-password" : "new-password"}
-                  required
-                  minLength={6}
-                  value={senha}
-                  onChange={(e) => setSenha(e.target.value)}
-                  placeholder="••••••••"
-                />
-              </div>
+
+              {modo !== "recuperar" && (
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label>Senha</Label>
+                    {modo === "entrar" && (
+                      <button
+                        type="button"
+                        className="text-[12px] font-semibold text-royal hover:underline"
+                        onClick={() => {
+                          setErro(null);
+                          setAvisoCadastro(null);
+                          setAvisoRecuperacao(null);
+                          setModo("recuperar");
+                        }}
+                      >
+                        Esqueci minha senha
+                      </button>
+                    )}
+                  </div>
+                  <Input
+                    icon={<Lock size={17} />}
+                    type="password"
+                    autoComplete={modo === "entrar" ? "current-password" : "new-password"}
+                    required
+                    minLength={6}
+                    value={senha}
+                    onChange={(e) => setSenha(e.target.value)}
+                    placeholder="••••••••"
+                  />
+                </div>
+              )}
 
               {erro && (
                 <p className="rounded-xl bg-destructive/10 px-3 py-2 text-[13px] font-medium text-destructive">
@@ -143,44 +178,73 @@ export default function Login() {
                   {avisoCadastro}
                 </p>
               )}
+              {avisoRecuperacao && (
+                <p className="rounded-xl bg-success-soft px-3 py-2 text-[13px] font-medium text-success">
+                  {avisoRecuperacao}
+                </p>
+              )}
 
               <Button type="submit" size="lg" className="w-full" disabled={carregando || carregandoGoogle}>
-                {carregando ? "Aguarde..." : modo === "entrar" ? "Entrar" : "Criar conta"}
+                {carregando
+                  ? "Aguarde..."
+                  : modo === "entrar"
+                    ? "Entrar"
+                    : modo === "cadastrar"
+                      ? "Criar conta"
+                      : "Enviar link de redefinição"}
               </Button>
 
-              <button
-                type="button"
-                className="text-[13px] font-semibold text-muted-foreground hover:text-royal"
-                onClick={() => {
-                  setErro(null);
-                  setAvisoCadastro(null);
-                  setModo(modo === "entrar" ? "cadastrar" : "entrar");
-                }}
-              >
-                {modo === "entrar" ? "Ainda não tem conta? Cadastre-se" : "Já tem conta? Entrar"}
-              </button>
+              {modo === "recuperar" ? (
+                <button
+                  type="button"
+                  className="text-[13px] font-semibold text-muted-foreground hover:text-royal"
+                  onClick={() => {
+                    setErro(null);
+                    setAvisoRecuperacao(null);
+                    setModo("entrar");
+                  }}
+                >
+                  Voltar para o login
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="text-[13px] font-semibold text-muted-foreground hover:text-royal"
+                  onClick={() => {
+                    setErro(null);
+                    setAvisoCadastro(null);
+                    setModo(modo === "entrar" ? "cadastrar" : "entrar");
+                  }}
+                >
+                  {modo === "entrar" ? "Ainda não tem conta? Cadastre-se" : "Já tem conta? Entrar"}
+                </button>
+              )}
             </form>
 
-            <div className="flex w-full items-center gap-3">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-[12px] font-medium text-muted-foreground">ou</span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
+            {modo !== "recuperar" && (
+              <>
+                <div className="flex w-full items-center gap-3">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-[12px] font-medium text-muted-foreground">ou</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
 
-            <Button
-              type="button"
-              variant="secondary"
-              size="lg"
-              className="w-full"
-              disabled={carregando || carregandoGoogle}
-              onClick={entrarComGoogle}
-            >
-              <GoogleIcon />
-              {carregandoGoogle ? "Redirecionando..." : "Continuar com Google"}
-            </Button>
-            <p className="-mt-3 text-center text-[11.5px] text-muted-foreground">
-              Use o mesmo e-mail com que você foi convidado.
-            </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="lg"
+                  className="w-full"
+                  disabled={carregando || carregandoGoogle}
+                  onClick={entrarComGoogle}
+                >
+                  <GoogleIcon />
+                  {carregandoGoogle ? "Redirecionando..." : "Continuar com Google"}
+                </Button>
+                <p className="-mt-3 text-center text-[11.5px] text-muted-foreground">
+                  Use o mesmo e-mail com que você foi convidado.
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       </motion.div>
