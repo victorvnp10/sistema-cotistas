@@ -19,7 +19,7 @@ Reescrita web de um sistema antigo em Google Apps Script (ver `README.md` na rai
 
 **Comandos**: `npm run dev` (vite, porta 5173) · `npm run build` (`tsc -b && vite build`) · `npm run lint` (oxlint) · `npm run preview`.
 
-**Supabase**: projeto `oniaznwsevpkvvspitie` (nome "jolly-roger"), região us-west-2. Use as ferramentas MCP do Supabase (`execute_sql`, `apply_migration`, `list_migrations`) para ground truth do schema — não confie só nos arquivos `.sql` locais (ver "Gap de migrações" abaixo).
+**Supabase**: projeto `oniaznwsevpkvvspitie` (nome "jolly-roger"), região us-west-2. O schema completo do banco vive em **`supabase/schema.sql`** — um arquivo único (não uma sequência de migrações), gerado por introspecção direta do banco. Veja "Schema do banco" e o cabeçalho do próprio arquivo para o fluxo de trabalho.
 
 ## Glossário de domínio (PT)
 
@@ -51,20 +51,20 @@ Reescrita web de um sistema antigo em Google Apps Script (ver `README.md` na rai
 página (src/pages/*.tsx)
   → hook React Query (src/lib/queries/*.ts)
     → supabase-js: select/insert/update/delete direto NA TABELA, ou .rpc(nome_funcao)
-      → Postgres: tabela com RLS, ou função SECURITY [DEFINER|INVOKER] (supabase/migrations/*.sql)
+      → Postgres: tabela com RLS, ou função SECURITY [DEFINER|INVOKER] (supabase/schema.sql)
 ```
 
 - Regra geral: leituras simples e CRUD trivial vão direto na tabela (RLS decide quem pode); qualquer coisa com lógica de negócio (cálculo, validação entre linhas, side-effects) vira uma função RPC no Postgres. **Não duplique lógica de negócio no frontend** — se uma conta/validação já existe como função no banco, chame-a via `.rpc()`.
 - Estado global: só `AuthContext` (sessão/grupo atual/permissões) e `ToastContext` (toasts). Tudo mais é cache do React Query, chave por `grupoAtual.id` (ou `membroAtual.id` quando é dado pessoal).
-- Pastas reais (ignore qualquer coisa fora daqui — ver "Lixo na raiz"):
+- Pastas reais:
   - `src/pages/*.tsx` — uma tela por rota (ver Mapa de páginas)
   - `src/lib/queries/*.ts` — hooks React Query, um arquivo por domínio
   - `src/lib/{utils,formato,ranking,supabase,constants,linkUtils}.ts` — helpers puros (ver abaixo)
   - `src/contexts/{AuthContext,ToastContext}.tsx`
   - `src/components/AppLayout.tsx` — shell: header, bottom nav, menu "Mais", modal de troca de senha, banner de avisos ativos
   - `src/components/ui/*` — kit de componentes (ver lista abaixo)
-  - `src/types/database.types.ts` — tipos gerados do schema Supabase (regenerar com a tool MCP `generate_typescript_types` depois de qualquer migração)
-  - `supabase/migrations/*.sql` — histórico de migrações (incompleto localmente, ver "Gap de migrações")
+  - `src/types/database.types.ts` — tipos gerados do schema Supabase (regenerar com a tool MCP `generate_typescript_types` depois de qualquer mudança de schema)
+  - `supabase/schema.sql` — schema completo do banco, arquivo único (ver "Schema do banco")
 
 **Kit de UI** (`src/components/ui/`): `avatar, badge (variants: success/error/warning/info/neutral), bottom-navigation, button, card (Card/CardHeader/CardTitle/CardDescription/CardContent, variant "destaque" = gradiente), empty-state, fab, header, horimetro-gauge (HorimetroGauge — mostrador circular estilo instrumento físico, usado no Diário), input (aceita prop icon), label, list-item, loading-skeleton, modal (bottom-sheet), segmented-control, stat-card`. Convenção em todo CRUD: `useState` de formulário local + `Modal` + `useToast().sucesso/erro()`.
 
@@ -139,7 +139,11 @@ Todo hook lê `grupoAtual`/`membroAtual` de `useAuth()` e filtra por `grupo_id`.
 
 ## Schema do banco (resumo)
 
-18 tabelas em `public`, todas com RLS habilitado. Padrão de política: `SELECT` → `eh_membro_ativo(grupo_id)`; escrita sensível → `eh_gestor_ou_admin(grupo_id)` ou `eh_admin(grupo_id)`; essas três são funções `SECURITY DEFINER` que checam `grupo_membros` pelo `auth.uid()` atual.
+O schema completo e executável vive em **`supabase/schema.sql`** — um único arquivo (extensões, tabelas, funções, triggers, políticas RLS, job do pg_cron), gerado por introspecção direta do banco de produção em 2026-08-12. Cole esse arquivo inteiro no SQL Editor de um projeto Supabase novo para clonar a estrutura completa do sistema (ver instruções no cabeçalho do próprio arquivo).
+
+**Fluxo de trabalho para mudanças de schema** (não existe mais pasta `supabase/migrations/`): aplique a mudança direto no banco via MCP do Supabase (`apply_migration` ou `execute_sql`), depois regenere `supabase/schema.sql` do zero por introspecção (não edite o arquivo à mão por cima — ele é um dump, não um histórico incremental) e regenere `src/types/database.types.ts` com `generate_typescript_types`. Documente a mudança no Changelog deste arquivo.
+
+17 tabelas em `public`, todas com RLS habilitado. Padrão de política: `SELECT` → `eh_membro_ativo(grupo_id)`; escrita sensível → `eh_gestor_ou_admin(grupo_id)` ou `eh_admin(grupo_id)`; essas três são funções `SECURITY DEFINER` que checam `grupo_membros` pelo `auth.uid()` atual.
 
 **Núcleo**: `grupos` (1 barco) · `grupo_membros` (cotistas, `role` admin/gestor/cotista, `cotas`, `user_id` nullable = convite pendente)
 
@@ -165,13 +169,13 @@ Todo hook lê `grupoAtual`/`membroAtual` de `useAuth()` e filtra por `grupo_id`.
 - *Seguro*: `renovar_seguro`
 - *Painel do gestor*: `painel_gestor`
 - *Grupo/admin*: `criar_grupo` (SECURITY DEFINER), `master_editar_nome_grupo`, `eh_admin`/`eh_gestor_ou_admin`/`eh_membro_ativo`/`eh_master` (todas SECURITY DEFINER, usadas em política RLS)
-- *Sistema*: `processar_recorrentes_do_dia` (SECURITY DEFINER, provavelmente cron/job)
+- *Sistema*: `processar_recorrentes_do_dia` (SECURITY DEFINER, chamada diariamente às 06:00 UTC por um job do `pg_cron`, ver fim de `supabase/schema.sql`)
 
 **Triggers**: `auth.users` AFTER INSERT → `vincular_convite_pendente()` · `grupo_membros` BEFORE INSERT → `vincular_membro_a_conta_existente()` (ambos SECURITY DEFINER, ver fluxo de convite acima)
 
 ### Horímetro — cuidado especial
 
-Redesenhado na migração `0022_sincronizacao_horimetro.sql` depois de um bug real (o valor exibido chegou a ficar 188.2h quando o aparelho físico marcava 6.6h). Design atual:
+Redesenhado em 2026-08-12 depois de um bug real (o valor exibido chegou a ficar 188.2h quando o aparelho físico marcava 6.6h). Design atual:
 
 - `ultima_leitura_horimetro(grupo_id)` = a leitura mais recente conhecida, comparando por `criado_em`: o `horimetro_fim` do último `diario_bordo`, OU o `leitura_novo_aparelho` do último `ajustes_horimetro`, o que for mais recente. **Sem soma cumulativa** — nunca compõe deltas.
 - `ultimo_horimetro(grupo_id)` = `coalesce(ultima_leitura_horimetro(...), 0)`, é o que a UI mostra (mostrador `HorimetroGauge` no Diário).
@@ -180,10 +184,9 @@ Redesenhado na migração `0022_sincronizacao_horimetro.sql` depois de um bug re
 
 ## Particularidades / armadilhas conhecidas
 
-- **Lixo na raiz do repo**: arquivos soltos na raiz (fora de `src/` e `supabase/`) como `Diario.tsx`, `useDiario.ts`, `0004_job_diario_recorrentes.sql`, `package-lock.json` (já corrigido) têm conteúdo **trocado/corrompido** — não correspondem ao nome do arquivo, sobra de uma exportação malfeita antiga. **Nunca leia ou confie neles.** A árvore real é só `src/` e `supabase/`.
-- **`src/pages/Reservar.tsx` é código morto**: existia uma tela "Reservar" separada; foi incorporada ao Calendário (ver `README.md`, seção "Reservar foi incorporado à Agenda") e removida do roteamento em `App.tsx`, mas o arquivo nunca foi apagado. Não editar nem reativar sem confirmar com o usuário.
-- **`src/pages/useOleo.ts` é duplicata órfã**: idêntico a `src/lib/queries/useOleo.ts`, não é importado por nada. Lixo, seguro remover se for fazer limpeza.
-- **Gap de migrações locais**: `supabase/migrations/` local só tem 0001–0009, depois pula pra 0021–0022. As migrações 0010–0020 existem no histórico remoto (`list_migrations` via MCP mostra nomes como `0015_fix_projecao_manutencao_horas`, `0016_ajuste_horimetro`, `0017_administracao_grupos`, `0018_bloqueio_cancelar_reserva_passada`, `0019_avisos_embarcacao`, `0020_editar_lancamento`) mas os arquivos `.sql` correspondentes não foram salvos localmente. **Sempre confirme o schema real via MCP (`list_migrations`, `execute_sql` contra `information_schema`/`pg_proc`) antes de assumir que uma função/tabela não existe** — o código local pode estar desatualizado em relação ao banco.
+- **A raiz do repo já foi um lixão de arquivos com conteúdo trocado/corrompido** (sobra de uma exportação malfeita antiga — dezenas de `.tsx`/`.ts`/`.sql` soltos fora de `src/`/`supabase/` cujo conteúdo não batia com o nome do arquivo, mais dois `.zip`/`.rar` de backup). Tudo isso foi removido em 2026-08-12 (~87 arquivos, ver Changelog). **Se algo assim aparecer de novo na raiz** (arquivo cujo conteúdo não faz sentido pro nome, ou não é referenciado por nenhum `tsconfig`/`vite.config`), é o mesmo padrão — não confie no conteúdo, confirme com o usuário antes de tratar como real.
+- **`src/pages/Reservar.tsx` e `src/pages/useOleo.ts` (código morto/duplicata órfã) foram removidos** em 2026-08-12. Se `Reservar` como tela separada precisar voltar, reconstrua a partir do zero — a funcionalidade equivalente vive hoje em `Calendario.tsx`.
+- **`supabase/schema.sql` é um dump, não um histórico**: não existe mais pasta `supabase/migrations/`. Ver "Fluxo de trabalho para mudanças de schema" acima antes de mexer no banco.
 - **`node_modules` nunca deve ser commitado**: já aconteceu (commit `0a9d8290`) e quebrou o build na Vercel (`Permission denied` no `tsc`, binário perdeu o bit de execução no round-trip Windows→git→Linux). Há `.gitignore` agora cobrindo `node_modules/`, `.env*`, `dist/`. Se `git status` mostrar node_modules como novo/modificado, pare e investigue antes de commitar.
 - **`.env.local` não é commitado**: Vercel precisa de `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` configuradas direto nas Environment Variables do projeto, não vêm de arquivo versionado.
 - **Estrutura de git worktree**: este projeto é frequentemente trabalhado a partir de `.claude/worktrees/<nome>/`, um worktree git separado do checkout principal (`sistema-cotistas/`), compartilhando o mesmo `.git`. `git push` numa branch `claude/*` não aparece automaticamente na pasta principal — é preciso push + PR/merge. Cuidado ao commitar: o usuário já commitou `node_modules` sem querer pelo GitHub Desktop apontando pro worktree errado.
@@ -192,7 +195,8 @@ Redesenhado na migração `0022_sincronizacao_horimetro.sql` depois de um bug re
 
 ## Changelog
 
-- **2026-08-12**: Criado este arquivo (varredura completa do sistema: 16 páginas, 13 arquivos de hooks, 18 tabelas, ~51 funções RPC). Nenhuma mudança de código nesta entrada, só documentação.
+- **2026-08-12**: Criado este arquivo (varredura completa do sistema: 16 páginas, 13 arquivos de hooks, 17 tabelas, ~51 funções RPC). Nenhuma mudança de código nesta entrada, só documentação.
 - **2026-08-12**: Corrigido bug de sincronia do horímetro (migração `0022_sincronizacao_horimetro.sql`) — `ultimo_horimetro` deixou de somar ajustes cumulativamente, passou a usar a leitura mais recente conhecida. Ver seção "Horímetro — cuidado especial" acima.
 - **2026-08-12**: Adicionado `HorimetroGauge` (`src/components/ui/horimetro-gauge.tsx`) e modernizada `src/pages/Diario.tsx`.
 - **2026-08-12**: Corrigido build quebrado na Vercel — `node_modules`/`.env.local` removidos do git, `.gitignore` criado. Ver "Particularidades" acima.
+- **2026-08-12**: Limpeza completa do repositório — removidos ~87 arquivos: todo o lixo de conteúdo trocado/corrompido na raiz (dezenas de `.tsx`/`.ts`/`.sql` soltos, mais `sistema-cotistas-completo.zip`/`.rar`), o código morto `src/pages/Reservar.tsx` e a duplicata órfã `src/pages/useOleo.ts`. Recriado `.env.example` de verdade (o antigo tinha conteúdo trocado). Substituída a pasta fragmentada `supabase/migrations/` (gap 0010–0020, alguns arquivos já corrompidos) por **`supabase/schema.sql`** único, gerado por introspecção completa do banco de produção — extensões, 17 tabelas, 52 funções, 2 triggers, 61 políticas RLS e o job do pg_cron. Esse arquivo agora é a fonte da verdade para clonar o sistema; ver "Schema do banco" acima para o novo fluxo de trabalho.
