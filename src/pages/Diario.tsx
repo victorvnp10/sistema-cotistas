@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { BookOpen, Gauge, Clock, Settings2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import { BookOpen, Gauge, Clock, Settings2, History, TriangleAlert, ClipboardList } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import {
@@ -21,11 +22,13 @@ import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { EmptyState } from "@/components/ui/empty-state";
+import { HorimetroGauge } from "@/components/ui/horimetro-gauge";
 import { cn } from "@/lib/utils";
 import type { PrioridadeDiario } from "@/types/database.types";
 
 const LABEL_PRIORIDADE: Record<PrioridadeDiario, string> = { normal: "Relato", atencao: "Atenção", urgente: "Urgência" };
 const BADGE_PRIORIDADE: Record<PrioridadeDiario, "neutral" | "warning" | "error"> = { normal: "neutral", atencao: "warning", urgente: "error" };
+const ICON_PRIORIDADE: Record<PrioridadeDiario, typeof ClipboardList> = { normal: ClipboardList, atencao: TriangleAlert, urgente: TriangleAlert };
 
 export default function Diario() {
   const { membroAtual, podeGerenciarOrcamento } = useAuth();
@@ -112,11 +115,40 @@ export default function Diario() {
     return true;
   });
 
+  const ultimoRegistroComHorimetro = useMemo(
+    () => (entradas ?? []).find((e) => e.horimetro_fim > 0),
+    [entradas]
+  );
+
   return (
     <div className="flex flex-col gap-4 pb-6">
+      <Card className="!p-0 overflow-hidden">
+        <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-black px-6 pb-7 pt-6 text-white">
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <p className="text-[10.5px] font-bold uppercase tracking-[0.2em] text-white/45">Horímetro</p>
+              <h2 className="text-[17px] font-bold">Posição atual</h2>
+            </div>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white/60">
+              <Gauge size={17} />
+            </span>
+          </div>
+          <HorimetroGauge valor={ultimoHorimetro ?? 0} />
+          <p className="mt-4 text-center text-[12px] text-white/50">
+            {ultimoRegistroComHorimetro
+              ? `Atualizado com o registro de ${formatarDataBR(
+                  ultimoRegistroComHorimetro.data_uso_reportado ?? ultimoRegistroComHorimetro.criado_em.slice(0, 10)
+                )}`
+              : "Nenhum registro com horímetro ainda"}
+          </p>
+        </div>
+      </Card>
+
       {!!pendentes?.length && (
         <Card variant="destaque">
-          <h2 className="mb-1 text-[15px] font-bold">⏳ Relatórios de uso pendentes</h2>
+          <h2 className="mb-1 flex items-center gap-2 text-[15px] font-bold">
+            <Clock size={16} /> Relatórios de uso pendentes
+          </h2>
           <p className="mb-3 text-[12px] text-white/80">Registre o horímetro dos usos abaixo.</p>
           <div className="flex flex-col gap-2">
             {pendentes.map((p) => (
@@ -170,16 +202,18 @@ export default function Diario() {
 
       {podeGerenciarOrcamento && (
         <Card>
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-[15px] font-bold"><Settings2 size={17} className="text-royal" /> Horímetro</h2>
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-[15px] font-bold"><Settings2 size={17} className="text-royal" /> Gerenciar horímetro</h2>
             <Button size="sm" variant="outline" onClick={abrirModalTroca}>Registrar troca de aparelho</Button>
           </div>
           <p className="text-[12.5px] text-muted-foreground">
-            Horímetro atual: <strong>{(ultimoHorimetro ?? 0).toFixed(1)}h</strong>
+            Use isto apenas quando o aparelho físico for substituído.
           </p>
           {!!ajustes?.length && (
             <div className="mt-3 flex flex-col gap-1.5 border-t border-border/60 pt-3">
-              <p className="text-[11.5px] font-bold uppercase tracking-wide text-muted-foreground">Histórico de ajustes</p>
+              <p className="mb-0.5 flex items-center gap-1.5 text-[11.5px] font-bold uppercase tracking-wide text-muted-foreground">
+                <History size={12} /> Histórico de ajustes
+              </p>
               {ajustes.map((a) => (
                 <div key={a.id} className="flex items-center justify-between gap-2 text-[12.5px]">
                   <span className="text-muted-foreground">{formatarDataBR(a.data)} — {a.motivo}</span>
@@ -200,14 +234,29 @@ export default function Diario() {
             <option value="resolvidos">Resolvidos</option>
           </select>
         </div>
-        {isLoading ? null : !exibidos.length ? (
+        {isLoading ? (
+          <div className="flex flex-col gap-2.5">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-24 animate-pulse rounded-2xl bg-secondary" />
+            ))}
+          </div>
+        ) : !exibidos.length ? (
           <EmptyState titulo="Nenhum registro encontrado" />
         ) : (
           <div className="flex flex-col gap-2.5">
-            {exibidos.map((e) => (
-              <div key={e.id} className={cn("rounded-2xl border border-border/60 bg-white p-4", e.resolvido && "opacity-60")}>
+            {exibidos.map((e, i) => {
+              const IconePrioridade = ICON_PRIORIDADE[e.prioridade];
+              return (
+              <motion.div
+                key={e.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: Math.min(i, 6) * 0.03 }}
+                className={cn("rounded-2xl border border-border/60 bg-white p-4", e.resolvido && "opacity-60")}
+              >
                 <div className="mb-1.5 flex flex-wrap items-center gap-2">
                   <Badge variant={e.resolvido ? "success" : BADGE_PRIORIDADE[e.prioridade]}>
+                    <IconePrioridade size={11} />
                     {e.resolvido ? "Resolvido" : LABEL_PRIORIDADE[e.prioridade]}
                   </Badge>
                   <span className="text-[14px] font-bold">{e.titulo}</span>
@@ -215,7 +264,7 @@ export default function Diario() {
                 </div>
                 <p className="whitespace-pre-wrap text-[13.5px] text-foreground/90">{e.relato}</p>
                 {e.horimetro_fim > 0 && (
-                  <p className="mt-1.5 flex items-center gap-1 text-[11.5px] text-muted-foreground">
+                  <p className="mt-1.5 flex items-center gap-1 text-[11.5px] font-medium text-royal">
                     <Clock size={11} /> {e.horimetro_inicio.toFixed(1)}h → {e.horimetro_fim.toFixed(1)}h (uso: {e.tempo_uso.toFixed(1)}h)
                   </p>
                 )}
@@ -230,8 +279,8 @@ export default function Diario() {
                     <button className="text-[12px] font-bold text-destructive hover:underline" onClick={() => excluir.mutate(e.id)}>Excluir</button>
                   </div>
                 )}
-              </div>
-            ))}
+              </motion.div>
+            );})}
           </div>
         )}
       </Card>
