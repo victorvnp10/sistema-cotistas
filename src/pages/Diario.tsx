@@ -204,20 +204,20 @@ export default function Diario() {
         <Card>
           <div className="mb-1 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-[15px] font-bold"><Settings2 size={17} className="text-royal" /> Gerenciar horímetro</h2>
-            <Button size="sm" variant="outline" onClick={abrirModalTroca}>Registrar troca de aparelho</Button>
+            <Button size="sm" variant="outline" onClick={abrirModalTroca}>Sincronizar horímetro</Button>
           </div>
           <p className="text-[12.5px] text-muted-foreground">
-            Use isto apenas quando o aparelho físico for substituído.
+            Use isto quando o aparelho físico for substituído, ou quando o valor aqui não bater mais com o instalado na lancha.
           </p>
           {!!ajustes?.length && (
             <div className="mt-3 flex flex-col gap-1.5 border-t border-border/60 pt-3">
               <p className="mb-0.5 flex items-center gap-1.5 text-[11.5px] font-bold uppercase tracking-wide text-muted-foreground">
-                <History size={12} /> Histórico de ajustes
+                <History size={12} /> Histórico de sincronizações
               </p>
               {ajustes.map((a) => (
                 <div key={a.id} className="flex items-center justify-between gap-2 text-[12.5px]">
                   <span className="text-muted-foreground">{formatarDataBR(a.data)} — {a.motivo}</span>
-                  <span className="font-semibold">{a.delta >= 0 ? "+" : ""}{a.delta.toFixed(1)}h</span>
+                  <span className="font-semibold">{a.leitura_anterior.toFixed(1)}h → {a.leitura_novo_aparelho.toFixed(1)}h</span>
                 </div>
               ))}
             </div>
@@ -285,29 +285,36 @@ export default function Diario() {
         )}
       </Card>
 
-      <Modal aberto={modalTrocaAberto} aoFechar={() => setModalTrocaAberto(false)} titulo="Registrar troca de aparelho">
+      <Modal aberto={modalTrocaAberto} aoFechar={() => setModalTrocaAberto(false)} titulo="Sincronizar horímetro">
         <div className="flex flex-col gap-3">
           <p className="text-[13px] text-muted-foreground">
-            Use isto quando o aparelho físico de horímetro for substituído e passar a mostrar uma leitura
-            diferente (geralmente reiniciando do zero). As horas de manutenção e óleo já registradas
-            continuam corretas — isto só corrige o valor de referência do "horímetro atual".
+            Use isto quando o aparelho físico de horímetro for substituído (geralmente reiniciando de
+            uma leitura menor, como 0), ou quando o valor mostrado aqui não bater mais com o instalado
+            na lancha por qualquer outro motivo. As horas de uso já registradas no diário continuam
+            corretas — isto só corrige a referência do "horímetro atual".
           </p>
           <div className="flex flex-col gap-1.5">
-            <Label>Horas reais acumuladas até a troca</Label>
+            <Label>Horímetro real antes (para o histórico)</Label>
             <Input type="number" step="0.1" value={horasReaisAteTroca} onChange={(e) => setHorasReaisAteTroca(e.target.value)} />
             <p className="text-[11.5px] text-muted-foreground">Pré-preenchido com o horímetro atual do sistema.</p>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>Leitura do aparelho novo, logo após a instalação</Label>
+            <Label>Leitura atual do aparelho instalado</Label>
             <Input type="number" step="0.1" value={leituraAparelhoNovo} onChange={(e) => setLeituraAparelhoNovo(e.target.value)} />
+            <p className="text-[11.5px] text-muted-foreground">0 se o aparelho é novo, ou a leitura que ele já mostra se for usado.</p>
           </div>
+          {leituraAparelhoNovo !== "" && (
+            <p className="rounded-xl bg-accent px-3 py-2 text-[12.5px] font-medium text-royal">
+              A partir de agora o horímetro do app vai mostrar <strong>{Number(leituraAparelhoNovo).toFixed(1)}h</strong> — igual ao aparelho instalado.
+            </p>
+          )}
           <div className="flex flex-col gap-1.5">
-            <Label>Data da troca</Label>
+            <Label>Data</Label>
             <Input type="date" value={dataTroca} onChange={(e) => setDataTroca(e.target.value)} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Motivo (opcional)</Label>
-            <Input value={motivoTroca} onChange={(e) => setMotivoTroca(e.target.value)} placeholder="Ex: aparelho antigo quebrou" />
+            <Input value={motivoTroca} onChange={(e) => setMotivoTroca(e.target.value)} placeholder="Ex: aparelho antigo quebrou / horímetro dessincronizado" />
           </div>
           <div className="mt-2 flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setModalTrocaAberto(false)}>Cancelar</Button>

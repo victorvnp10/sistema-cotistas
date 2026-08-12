@@ -279,6 +279,8 @@ export interface Database {
           id: string;
           grupo_id: string;
           data: string;
+          leitura_anterior: number;
+          leitura_novo_aparelho: number;
           delta: number;
           motivo: string | null;
           criado_por: string | null;
@@ -288,6 +290,8 @@ export interface Database {
           id?: string;
           grupo_id: string;
           data?: string;
+          leitura_anterior: number;
+          leitura_novo_aparelho?: number;
           delta: number;
           motivo?: string | null;
           criado_por?: string | null;
