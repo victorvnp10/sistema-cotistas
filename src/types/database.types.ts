@@ -702,6 +702,22 @@ export interface Database {
         };
         Returns: Database["public"]["Tables"]["grupos"]["Row"];
       };
+      master_excluir_grupo: {
+        Args: { p_grupo_id: string };
+        Returns: void;
+      };
+      master_trocar_admin: {
+        Args: {
+          p_grupo_id: string;
+          p_novo_admin_email: string;
+          p_novo_admin_nome?: string | null;
+        };
+        Returns: void;
+      };
+      master_excluir_membro: {
+        Args: { p_membro_id: string };
+        Returns: void;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
