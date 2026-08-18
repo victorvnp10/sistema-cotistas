@@ -1,9 +1,9 @@
-// Tipos do banco de dados. Este arquivo pode ser regenerado automaticamente
+﻿// Tipos do banco de dados. Este arquivo pode ser regenerado automaticamente
 // mais tarde com:
 //   npx supabase gen types typescript --project-id SEU_PROJECT_ID > src/types/database.types.ts
-// Por enquanto, foi escrito à mão espelhando exatamente o schema SQL
-// (supabase/migrations/0001_schema_inicial.sql), para já termos autocomplete
-// e checagem de tipos em todo o app desde o início.
+// Por enquanto, foi escrito ├á m├úo espelhando exatamente o schema SQL
+// (supabase/migrations/0001_schema_inicial.sql), para j├í termos autocomplete
+// e checagem de tipos em todo o app desde o in├¡cio.
 
 export type Papel = "admin" | "gestor" | "cotista";
 export type TipoLancamento = "receita" | "despesa";
@@ -68,6 +68,7 @@ export interface Database {
           role: Papel;
           cotas: number;
           ativo: boolean;
+          excluido: boolean;
           criado_em: string;
         };
         Insert: {
@@ -80,6 +81,7 @@ export interface Database {
           role?: Papel;
           cotas?: number;
           ativo?: boolean;
+          excluido?: boolean;
           criado_em?: string;
         };
         Update: Partial<Database["public"]["Tables"]["grupo_membros"]["Insert"]>;
@@ -614,6 +616,10 @@ export interface Database {
       };
       editar_custo_oleo_atual: {
         Args: { p_id: string; p_custo_galao: number; p_data_inicio: string };
+        Returns: void;
+      };
+      excluir_membro: {
+        Args: { p_membro_id: string };
         Returns: void;
       };
       fechar_custo_oleo: {

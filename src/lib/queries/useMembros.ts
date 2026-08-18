@@ -17,6 +17,7 @@ export function useMembros() {
         .from("grupo_membros")
         .select("*")
         .eq("grupo_id", grupoAtual!.id)
+        .eq("excluido", false)
         .order("nome");
       if (error) throw error;
       return data ?? [];
@@ -41,6 +42,23 @@ export function useSalvarMembro() {
           .insert({ ...payload, grupo_id: grupoAtual!.id });
         if (error) throw error;
       }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["membros", grupoAtual?.id] });
+      queryClient.invalidateQueries({ queryKey: ["mensalidade-membro"] });
+      queryClient.invalidateQueries({ queryKey: ["mensalidades-todos", grupoAtual?.id] });
+    },
+  });
+}
+
+export function useExcluirMembro() {
+  const queryClient = useQueryClient();
+  const { grupoAtual } = useAuth();
+
+  return useMutation({
+    mutationFn: async (membroId: string) => {
+      const { error } = await supabase.rpc("excluir_membro", { p_membro_id: membroId });
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["membros", grupoAtual?.id] });

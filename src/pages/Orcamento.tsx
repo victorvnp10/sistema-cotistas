@@ -28,7 +28,7 @@ import {
   useFecharCustoOleo,
 } from "@/lib/queries/useOleo";
 import { useProjecaoManutencaoHoras } from "@/lib/queries/useManutencoes";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,7 +45,7 @@ type Lancamento = Database["public"]["Tables"]["lancamentos"]["Row"];
 type ResumoOleoItem = Database["public"]["Functions"]["resumo_custo_oleo"]["Returns"][number];
 
 export default function Orcamento() {
-  const { grupoAtual, membroAtual, podeGerenciarOrcamento } = useAuth();
+  const { membroAtual, podeGerenciarOrcamento } = useAuth();
   const mesRef = mesReferenciaAtual();
 
   const { data: saldoAtual } = useSaldoAtual();
@@ -54,8 +54,6 @@ export default function Orcamento() {
   const { data: mensalidadesTodos } = useMensalidadesTodos();
 
   const custoVariavelMes = mensalidadesTodos?.reduce((acc, v) => acc + v.custo_variavel_mes, 0) ?? 0;
-
-  const termoCota = grupoAtual?.termo_cota ?? "cota";
 
   return (
     <div className="flex flex-col gap-4 pb-6">

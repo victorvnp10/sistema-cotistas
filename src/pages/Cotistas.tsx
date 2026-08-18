@@ -2,7 +2,7 @@ import { useState } from "react";
 import { UserPlus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { useMembros, useSalvarMembro } from "@/lib/queries/useMembros";
+import { useMembros, useSalvarMembro, useExcluirMembro } from "@/lib/queries/useMembros";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,9 +17,23 @@ type Membro = Database["public"]["Tables"]["grupo_membros"]["Row"];
 
 export default function Cotistas() {
   const { ehAdmin, grupoAtual } = useAuth();
+  const toast = useToast();
   const { data: membros, isLoading } = useMembros();
+  const excluir = useExcluirMembro();
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<Membro | null>(null);
+  const [paraExcluir, setParaExcluir] = useState<Membro | null>(null);
+
+  async function confirmarExclusao() {
+    if (!paraExcluir) return;
+    try {
+      await excluir.mutateAsync(paraExcluir.id);
+      toast.sucesso("Cotista excluído.");
+      setParaExcluir(null);
+    } catch (e) {
+      toast.erro(e instanceof Error ? e.message : "Erro ao excluir.");
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4 pb-6">
@@ -56,12 +70,20 @@ export default function Cotistas() {
                     <Badge variant={m.ativo ? "success" : "error"}>{m.ativo ? "Ativo" : "Inativo"}</Badge>
                   </div>
                   {ehAdmin && (
-                    <button
-                      className="text-[11.5px] font-bold text-royal hover:underline"
-                      onClick={() => { setEditando(m); setModalAberto(true); }}
-                    >
-                      Editar
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        className="text-[11.5px] font-bold text-royal hover:underline"
+                        onClick={() => { setEditando(m); setModalAberto(true); }}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        className="text-[11.5px] font-bold text-destructive hover:underline"
+                        onClick={() => setParaExcluir(m)}
+                      >
+                        Excluir
+                      </button>
+                    </div>
                   )}
                   {!m.user_id && <span className="text-[10px] italic text-muted-foreground">convite pendente</span>}
                 </div>
@@ -72,6 +94,20 @@ export default function Cotistas() {
       </Card>
 
       <ModalCotista aberto={modalAberto} aoFechar={() => setModalAberto(false)} membro={editando} />
+
+      <Modal aberto={!!paraExcluir} aoFechar={() => setParaExcluir(null)} titulo="Excluir cotista?">
+        <div className="flex flex-col gap-3">
+          <p className="text-[13.5px] text-muted-foreground">
+            Tem certeza que quer excluir <strong>{paraExcluir?.nome}</strong>? Os dados pessoais serão apagados e o cotista não aparecerá mais no sistema. Essa ação não pode ser desfeita.
+          </p>
+          <div className="mt-2 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setParaExcluir(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmarExclusao} disabled={excluir.isPending}>
+              {excluir.isPending ? "Excluindo..." : "Excluir"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

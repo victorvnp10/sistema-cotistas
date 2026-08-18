@@ -60,6 +60,7 @@ create table public.grupo_membros (
   role text not null default 'cotista' check (role = any (array['admin','gestor','cotista'])),
   cotas numeric(6,2) not null default 1 check (cotas > 0),
   ativo boolean not null default true,
+  excluido boolean not null default false,
   criado_em timestamptz not null default now(),
   unique (grupo_id, user_id)
 );
@@ -923,6 +924,41 @@ AS $function$
   );
 $function$;
 
+CREATE OR REPLACE FUNCTION public.excluir_membro(p_membro_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+  v_grupo_id uuid;
+  v_is_admin boolean;
+BEGIN
+  SELECT grupo_id INTO v_grupo_id
+  FROM grupo_membros
+  WHERE id = p_membro_id;
+
+  IF v_grupo_id IS NULL THEN
+    RAISE EXCEPTION 'Membro não encontrado.';
+  END IF;
+
+  SELECT eh_admin(v_grupo_id) INTO v_is_admin;
+
+  IF NOT v_is_admin THEN
+    RAISE EXCEPTION 'Apenas administradores podem excluir cotistas.';
+  END IF;
+
+  UPDATE grupo_membros
+  SET
+    nome = 'Excluído',
+    email = 'excluido-' || left(p_membro_id::text, 8),
+    telefone = NULL,
+    user_id = NULL,
+    ativo = false,
+    excluido = true
+  WHERE id = p_membro_id;
+END;
+$function$;
+
 CREATE OR REPLACE FUNCTION public.fechar_custo_oleo(p_id uuid, p_data_fim date)
  RETURNS void
  LANGUAGE plpgsql
@@ -1683,6 +1719,8 @@ create policy "membros leem colegas do grupo" on public.grupo_membros
   for select using (eh_membro_ativo(grupo_id));
 create policy "admin edita membros" on public.grupo_membros
   for update using (eh_admin(grupo_id));
+create policy "admin exclui membros" on public.grupo_membros
+  for delete using (eh_admin(grupo_id));
 
 -- ── feriados ──────────────────────────────────────────────────
 create policy "admin exclui feriados" on public.feriados

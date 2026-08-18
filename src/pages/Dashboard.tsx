@@ -14,7 +14,7 @@ import {
   formatarDataBR,
   formatarDataISO,
 } from "@/lib/ranking";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { Avatar } from "@/components/ui/avatar";
 
