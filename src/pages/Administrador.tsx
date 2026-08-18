@@ -221,12 +221,14 @@ export default function Administrador() {
             </div>
 
             {grupoSelecionado && (
-              <div className="mb-4 flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-white px-3.5 py-2.5">
-                <div className="min-w-0">
-                  <p className="truncate text-[14px] font-bold">{grupoSelecionado.nome}</p>
-                  <p className="text-[11.5px] text-muted-foreground">{grupoSelecionado.nome_recurso}</p>
+              <div className="mb-4 flex flex-col gap-2 rounded-xl border border-border/60 bg-white px-3.5 py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-[14px] font-bold">{grupoSelecionado.nome}</p>
+                    <p className="text-[11.5px] text-muted-foreground">{grupoSelecionado.nome_recurso}</p>
+                  </div>
                 </div>
-                <div className="flex gap-1.5">
+                <div className="flex flex-wrap gap-1.5">
                   <Button size="sm" variant="outline" onClick={abrirEdicaoNome}>
                     <Pencil size={14} /> Renomear
                   </Button>
@@ -234,7 +236,7 @@ export default function Administrador() {
                     <ArrowLeftRight size={14} /> Trocar admin
                   </Button>
                   <Button size="sm" variant="outline" onClick={abrirExcluirGrupo}>
-                    <Trash2 size={14} className="text-destructive" />
+                    <Trash2 size={14} className="text-destructive" /> Excluir
                   </Button>
                 </div>
               </div>

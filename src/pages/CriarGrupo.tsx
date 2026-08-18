@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Anchor } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 export default function CriarGrupo() {
   const navigate = useNavigate();
   const { session, ehMaster, recarregarMembresias } = useAuth();
+  const toast = useToast();
 
   useEffect(() => {
     if (!ehMaster) navigate("/", { replace: true });
@@ -55,6 +57,7 @@ export default function CriarGrupo() {
 
     await recarregarMembresias();
     setCarregando(false);
+    toast.sucesso("Grupo criado com sucesso!");
     navigate("/", { replace: true });
   }
 
