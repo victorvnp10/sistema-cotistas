@@ -70,4 +70,8 @@ export function useFecharCustoOleo() {
 
 function invalidar(queryClient: ReturnType<typeof useQueryClient>, grupoId: string | undefined) {
   queryClient.invalidateQueries({ queryKey: ["resumo-oleo", grupoId] });
+  queryClient.invalidateQueries({ queryKey: ["mensalidade-membro"] });
+  queryClient.invalidateQueries({ queryKey: ["mensalidades-todos", grupoId] });
+  queryClient.invalidateQueries({ queryKey: ["saldo-atual", grupoId] });
+  queryClient.invalidateQueries({ queryKey: ["lancamentos", grupoId] });
 }

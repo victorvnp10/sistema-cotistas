@@ -148,7 +148,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           ))}
 
           <button
-            onClick={sair}
+            onClick={() => { setMaisAberto(false); sair(); }}
             className="mt-2 flex items-center gap-3 rounded-2xl p-3.5 text-left text-destructive hover:bg-destructive/5"
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-destructive/10">

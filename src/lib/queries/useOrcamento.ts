@@ -192,8 +192,11 @@ export function useConfirmarPagamento() {
         .eq("id", payload.confirmacaoId);
       if (error) throw error;
     },
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["confirmacoes", grupoAtual?.id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["confirmacoes", grupoAtual?.id] });
+      queryClient.invalidateQueries({ queryKey: ["saldo-atual", grupoAtual?.id] });
+      queryClient.invalidateQueries({ queryKey: ["lancamentos", grupoAtual?.id] });
+    },
   });
 }
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { BookOpen, Gauge, Clock, Settings2, History, TriangleAlert, ClipboardList } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,12 +45,18 @@ export default function Diario() {
   const [titulo, setTitulo] = useState("");
   const [relato, setRelato] = useState("");
   const [prioridade, setPrioridade] = useState<PrioridadeDiario>("normal");
-  const [horimetroInicio, setHorimetroInicio] = useState<string>(ultimoHorimetro ? String(ultimoHorimetro) : "");
+  const [horimetroInicio, setHorimetroInicio] = useState<string>("");
   const [horimetroFim, setHorimetroFim] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<"todos" | "abertos" | "resolvidos">("todos");
   const [usoRotina, setUsoRotina] = useState(false);
   const [dataUso, setDataUso] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (ultimoHorimetro !== undefined && horimetroInicio === "") {
+      setHorimetroInicio(String(ultimoHorimetro));
+    }
+  }, [ultimoHorimetro]);
 
   const [modalTrocaAberto, setModalTrocaAberto] = useState(false);
   const [horasReaisAteTroca, setHorasReaisAteTroca] = useState("");

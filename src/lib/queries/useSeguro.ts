@@ -78,7 +78,11 @@ export function useAtualizarSeguro() {
         .eq("id", payload.id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["seguros", grupoAtual?.id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["seguros", grupoAtual?.id] });
+      queryClient.invalidateQueries({ queryKey: ["lancamentos", grupoAtual?.id] });
+      queryClient.invalidateQueries({ queryKey: ["saldo-atual", grupoAtual?.id] });
+    },
   });
 }
 
@@ -90,6 +94,10 @@ export function useExcluirSeguro() {
       const { error } = await supabase.from("seguros").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["seguros", grupoAtual?.id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["seguros", grupoAtual?.id] });
+      queryClient.invalidateQueries({ queryKey: ["lancamentos", grupoAtual?.id] });
+      queryClient.invalidateQueries({ queryKey: ["saldo-atual", grupoAtual?.id] });
+    },
   });
 }

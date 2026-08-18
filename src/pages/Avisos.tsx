@@ -30,6 +30,7 @@ export default function Avisos() {
 
   const [modalNovoAberto, setModalNovoAberto] = useState(false);
   const [mensagem, setMensagem] = useState("");
+  const [paraExcluir, setParaExcluir] = useState<string | null>(null);
 
   const ativos = (avisos ?? []).filter((a) => !a.resolvido);
   const resolvidos = (avisos ?? []).filter((a) => a.resolvido);
@@ -57,6 +58,17 @@ export default function Avisos() {
       toast.sucesso("Aviso marcado como resolvido.");
     } catch (e) {
       toast.erro(e instanceof Error ? e.message : "Erro ao resolver.");
+    }
+  }
+
+  async function confirmarExclusao() {
+    if (!paraExcluir) return;
+    try {
+      await excluir.mutateAsync(paraExcluir);
+      toast.sucesso("Aviso excluído.");
+      setParaExcluir(null);
+    } catch (e) {
+      toast.erro(e instanceof Error ? e.message : "Erro ao excluir.");
     }
   }
 
@@ -104,7 +116,7 @@ export default function Avisos() {
                     </button>
                     <button
                       className="text-[12px] font-bold text-destructive hover:underline"
-                      onClick={() => excluir.mutate(a.id)}
+                      onClick={() => setParaExcluir(a.id)}
                     >
                       Excluir
                     </button>
@@ -145,6 +157,20 @@ export default function Avisos() {
           <div className="mt-2 flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setModalNovoAberto(false)}>Cancelar</Button>
             <Button onClick={salvarNovo} disabled={criar.isPending}>{criar.isPending ? "Publicando..." : "Publicar"}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal aberto={!!paraExcluir} aoFechar={() => setParaExcluir(null)} titulo="Excluir aviso?">
+        <div className="flex flex-col gap-3">
+          <p className="text-[13.5px] text-muted-foreground">
+            Tem certeza que quer excluir este aviso? Essa ação não pode ser desfeita.
+          </p>
+          <div className="mt-2 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setParaExcluir(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmarExclusao} disabled={excluir.isPending}>
+              {excluir.isPending ? "Excluindo..." : "Excluir"}
+            </Button>
           </div>
         </div>
       </Modal>

@@ -1,6 +1,6 @@
 export function formatarMoeda(valor: number, moeda = "BRL"): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: moeda }).format(
-    valor || 0
+    valor ?? 0
   );
 }
 

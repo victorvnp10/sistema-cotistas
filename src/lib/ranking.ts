@@ -82,7 +82,7 @@ export interface ProximoDia {
 }
 
 /**
- * Próximos dias (até 60) que contam para a escala, com no máximo 10 resultados.
+ * Próximos dias (até 90) que contam para a escala, com no máximo 10 resultados.
  * Só retorna dias que tenham pelo menos um período (manhã ou tarde) livre --
  * dias totalmente reservados não aparecem, já que o card é só pra divulgar
  * o que ainda está disponível.

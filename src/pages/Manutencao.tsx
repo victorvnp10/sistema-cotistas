@@ -69,6 +69,7 @@ export default function Manutencao() {
 
   const [modalForm, setModalForm] = useState<{ aberto: boolean; editando: Manutencao | null }>({ aberto: false, editando: null });
   const [modalConcluir, setModalConcluir] = useState<Manutencao | null>(null);
+  const [paraExcluir, setParaExcluir] = useState<Manutencao | null>(null);
   const [dataFechamento, setDataFechamento] = useState(new Date().toISOString().slice(0, 10));
   const [custoReal, setCustoReal] = useState("");
   const [reagendarDias, setReagendarDias] = useState("");
@@ -114,6 +115,17 @@ export default function Manutencao() {
     }
   }
 
+  async function confirmarExclusao() {
+    if (!paraExcluir) return;
+    try {
+      await excluir.mutateAsync(paraExcluir.id);
+      toast.sucesso("Manutenção excluída.");
+      setParaExcluir(null);
+    } catch (e) {
+      toast.erro(e instanceof Error ? e.message : "Erro ao excluir.");
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4 pb-6">
       <Card>
@@ -151,7 +163,7 @@ export default function Manutencao() {
                     <div className="flex flex-wrap gap-2">
                       {!m.feito && <Button size="sm" variant="success" onClick={() => abrirModalConcluir(m)}>Concluir</Button>}
                       <Button size="sm" variant="outline" onClick={() => setModalForm({ aberto: true, editando: m })}>Editar</Button>
-                      <Button size="sm" variant="destructive" onClick={() => excluir.mutate(m.id)}>Excluir</Button>
+                      <Button size="sm" variant="destructive" onClick={() => setParaExcluir(m)}>Excluir</Button>
                     </div>
                   )}
                 </div>
@@ -193,6 +205,20 @@ export default function Manutencao() {
             <Button variant="ghost" onClick={() => setModalConcluir(null)}>Cancelar</Button>
             <Button variant="success" onClick={confirmarConclusao} disabled={concluir.isPending}>
               {concluir.isPending ? "Concluindo..." : "Confirmar"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal aberto={!!paraExcluir} aoFechar={() => setParaExcluir(null)} titulo="Excluir manutenção?">
+        <div className="flex flex-col gap-3">
+          <p className="text-[13.5px] text-muted-foreground">
+            Tem certeza que quer excluir <strong>{paraExcluir?.descricao}</strong>? Essa ação não pode ser desfeita.
+          </p>
+          <div className="mt-2 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setParaExcluir(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmarExclusao} disabled={excluir.isPending}>
+              {excluir.isPending ? "Excluindo..." : "Excluir"}
             </Button>
           </div>
         </div>

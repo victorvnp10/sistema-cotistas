@@ -19,7 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
  */
 export default function CriarGrupo() {
   const navigate = useNavigate();
-  const { session, ehMaster, recarregarMembresias, selecionarGrupo } = useAuth();
+  const { session, ehMaster, recarregarMembresias } = useAuth();
 
   useEffect(() => {
     if (!ehMaster) navigate("/", { replace: true });
@@ -54,7 +54,6 @@ export default function CriarGrupo() {
     }
 
     await recarregarMembresias();
-    selecionarGrupo(grupo.id);
     setCarregando(false);
     navigate("/", { replace: true });
   }

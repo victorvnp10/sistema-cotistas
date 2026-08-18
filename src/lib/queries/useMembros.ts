@@ -44,6 +44,8 @@ export function useSalvarMembro() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["membros", grupoAtual?.id] });
+      queryClient.invalidateQueries({ queryKey: ["mensalidade-membro"] });
+      queryClient.invalidateQueries({ queryKey: ["mensalidades-todos", grupoAtual?.id] });
     },
   });
 }

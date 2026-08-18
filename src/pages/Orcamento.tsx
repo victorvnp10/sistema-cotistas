@@ -439,7 +439,7 @@ function SecaoConfirmacoes() {
   const { data: membros } = useMembros();
   const confirmar = useConfirmarPagamento();
 
-  const mesPrefixo = new Date().toISOString().slice(0, 7);
+  const mesPrefixo = mesReferenciaAtual().slice(0, 7);
   const confsMes = (confirmacoes ?? []).filter((c) => c.mes_referencia === mesPrefixo);
 
   async function alternar(id: string, atual: boolean) {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -215,6 +215,11 @@ function ModalDia({ dataISO, aoFechar }: { dataISO: string; aoFechar: () => void
 
   const resM = reservas?.find((r) => r.data === dataISO && r.periodo === "M" && r.status !== "cancelado");
   const resT = reservas?.find((r) => r.data === dataISO && r.periodo === "T" && r.status !== "cancelado");
+
+  useEffect(() => {
+    if (resM && !resT) setPeriodo("T");
+    else if (!resM && resT) setPeriodo("M");
+  }, [resM, resT]);
 
   async function reservar() {
     try {

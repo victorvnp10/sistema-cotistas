@@ -68,6 +68,8 @@ export function useCriarRegistroDiario() {
       queryClient.invalidateQueries({ queryKey: ["relatorios-pendentes"] });
       queryClient.invalidateQueries({ queryKey: ["mensalidade-membro"] });
       queryClient.invalidateQueries({ queryKey: ["mensalidades-todos", grupoAtual?.id] });
+      queryClient.invalidateQueries({ queryKey: ["historico-combustivel", grupoAtual?.id] });
+      queryClient.invalidateQueries({ queryKey: ["resumo-oleo", grupoAtual?.id] });
     },
   });
 }
@@ -99,7 +101,10 @@ export function useExcluirRegistroDiario() {
       const { error } = await supabase.from("diario_bordo").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["diario", grupoAtual?.id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["diario", grupoAtual?.id] });
+      queryClient.invalidateQueries({ queryKey: ["ultimo-horimetro", grupoAtual?.id] });
+    },
   });
 }
 
