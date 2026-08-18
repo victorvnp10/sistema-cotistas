@@ -1,0 +1,23 @@
+tree ae944c97bee6da049884cba648123995f9d23dde
+parent c51a7ddc77d8556854dd6e72d99cf7792324bc4d
+author victorvnp10 <148510832+victorvnp10@users.noreply.github.com> 1785087092 -0300
+committer GitHub <noreply@github.com> 1785087092 -0300
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ wsFcBAABCAAQBQJqZkR0CRC1aQ7uu5UhlAAAEFYQABtg5vn9cwohgFm+0pbeWGgy
+ ABFA/ka+LxLUiFVKrZh9WXCZGZE0Hfzy9x6tn2X14PzHcD9otjMBdX8IDRyVRkKF
+ 9LX5/idGr9xuay6yv6bjMQoEUKlwBQY7FJgeQ1G0TwemtlUW3z8fIg4iNraarBi4
+ o+DUhzUN43kOJPTBAkCLiZ6RzrD10qMBQIccJYTaqxqciFc6Hj8ER/ZorIZABWuq
+ CKXkQ7mQRbfU06PNtjToF76TKCqk+AWWvnen5Tyjq9BKJM/g+H2bEqZAlikabeL3
+ NkB6A8oTIqNUKrZiqYfywZAfeoMwalbaEwzBzwBlmzIKR/Eh1PXmnAYPRvRpuCmK
+ CbuROy2joTOjYmFlMsL3XIaTwu1VOG355FP9QgrvyCW3HZtn8gEu4vAn8ioYlUhY
+ QSa6M+zRA7MSu+GIsiAdiN/t8kWc3IulHXp433YFpQpBytVECaYT4JSNDNolL6zx
+ jEtjbO1zT+Uw44vI8DMUK3Yz14serAHVS7eetZAy1jBZi9NkmplSe/298q20KmuJ
+ IVDXsV2P1PlwDg31ryOGVongTuDAO4lnMoedWx9voi6suhuIEnliUSDW1pWIh9KW
+ 9ICAdQajodAOX+ToklseJTjLaFWCuVjR94fCY7E8TOjdQAW3EO7pKg8juEv0Tro4
+ 3vsJhtpB177fnecLQ5DW
+ =nAIF
+ -----END PGP SIGNATURE-----
+ 
+
+Fix formatting and update hours display in Orcamento
