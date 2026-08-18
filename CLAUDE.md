@@ -99,7 +99,7 @@ página (src/pages/*.tsx)
 | `/painel-gestor` | `PainelGestor.tsx` | Relatório mensal/anual (uso, financeiro, seguro, manutenção), imprimível A4 | checado no backend (RPC retorna erro se não for gestor/admin) |
 | `/cotistas` | `Cotistas.tsx` | CRUD de cotistas, convite pendente | rota só existe se `ehAdmin` (registrada condicionalmente em `App.tsx`) |
 | `/feriados` | `Feriados.tsx` | CRUD de feriados (usados no cálculo de escala) | rota só existe se `ehAdmin` |
-| `/administrador` | `Administrador.tsx` | Console cross-grupo: criar grupo, listar/renomear grupos, reset de senha | master only (rota + `useEffect` redirect) |
+| `/administrador` | `Administrador.tsx` | Console cross-grupo: criar grupo, listar/renomear/excluir grupos, trocar admin, gerenciar membros, reset de senha | master only (rota + `useEffect` redirect) |
 | `/criar-grupo` | `CriarGrupo.tsx` | Provisiona grupo novo + convite do admin dele via RPC `criar_grupo` | master only |
 | `/aguardando-convite` | `AguardandoConvite.tsx` | Tela de espera para conta sem nenhum grupo | atalho "Ir para Administração" só se `ehMaster` |
 | `/login` | `Login.tsx` | Login/cadastro/recuperação + Google OAuth | — |
@@ -109,7 +109,7 @@ página (src/pages/*.tsx)
 
 Todo hook lê `grupoAtual`/`membroAtual` de `useAuth()` e filtra por `grupo_id`. `rpc` = chama função Postgres; sem prefixo = select/insert/update/delete direto na tabela indicada.
 
-**useAdministrador.ts** (master): `useTodosGrupos` → tabela `grupos` · `useMembrosDoGrupo` → `grupo_membros` · `useEditarNomeGrupo` → rpc `master_editar_nome_grupo`
+**useAdministrador.ts** (master): `useTodosGrupos` → tabela `grupos` · `useMembrosDoGrupo` → `grupo_membros` · `useEditarNomeGrupo` → rpc `master_editar_nome_grupo` · `useExcluirGrupo` → rpc `master_excluir_grupo` · `useTrocarAdmin` → rpc `master_trocar_admin` · `useExcluirMembroMaster` → rpc `master_excluir_membro`
 
 **useAvisos.ts**: `useAvisosAtivos`/`useAvisos` → `avisos_embarcacao` · `useCriarAviso`/`useResolverAviso`/`useExcluirAviso` → CRUD `avisos_embarcacao`
 
@@ -168,7 +168,7 @@ O schema completo e executável vive em **`supabase/schema.sql`** — um único 
 - *Uso/horas*: `horas_grupo_periodo`, `horas_membro_periodo`, `horas_por_membro_periodo`, `conta_para_escala`
 - *Seguro*: `renovar_seguro`
 - *Painel do gestor*: `painel_gestor`
-- *Grupo/admin*: `criar_grupo` (SECURITY DEFINER), `master_editar_nome_grupo`, `eh_admin`/`eh_gestor_ou_admin`/`eh_membro_ativo`/`eh_master` (todas SECURITY DEFINER, usadas em política RLS)
+- *Grupo/admin*: `criar_grupo` (SECURITY DEFINER), `master_editar_nome_grupo`, `master_excluir_grupo`, `master_trocar_admin`, `master_excluir_membro`, `eh_admin`/`eh_gestor_ou_admin`/`eh_membro_ativo`/`eh_master` (todas SECURITY DEFINER, usadas em política RLS)
 - *Sistema*: `processar_recorrentes_do_dia` (SECURITY DEFINER, chamada diariamente às 06:00 UTC por um job do `pg_cron`, ver fim de `supabase/schema.sql`)
 
 **Triggers**: `auth.users` AFTER INSERT → `vincular_convite_pendente()` · `grupo_membros` BEFORE INSERT → `vincular_membro_a_conta_existente()` (ambos SECURITY DEFINER, ver fluxo de convite acima)
@@ -200,3 +200,5 @@ Redesenhado em 2026-08-12 depois de um bug real (o valor exibido chegou a ficar 
 - **2026-08-12**: Adicionado `HorimetroGauge` (`src/components/ui/horimetro-gauge.tsx`) e modernizada `src/pages/Diario.tsx`.
 - **2026-08-12**: Corrigido build quebrado na Vercel — `node_modules`/`.env.local` removidos do git, `.gitignore` criado. Ver "Particularidades" acima.
 - **2026-08-12**: Limpeza completa do repositório — removidos ~87 arquivos: todo o lixo de conteúdo trocado/corrompido na raiz (dezenas de `.tsx`/`.ts`/`.sql` soltos, mais `sistema-cotistas-completo.zip`/`.rar`), o código morto `src/pages/Reservar.tsx` e a duplicata órfã `src/pages/useOleo.ts`. Recriado `.env.example` de verdade (o antigo tinha conteúdo trocado). Substituída a pasta fragmentada `supabase/migrations/` (gap 0010–0020, alguns arquivos já corrompidos) por **`supabase/schema.sql`** único, gerado por introspecção completa do banco de produção — extensões, 17 tabelas, 52 funções, 2 triggers, 61 políticas RLS e o job do pg_cron. Esse arquivo agora é a fonte da verdade para clonar o sistema; ver "Schema do banco" acima para o novo fluxo de trabalho.
+- **2026-08-12**: Adicionado `excluido` em `grupo_membros` + RPC `excluir_membro` (anonymize cross-grupo) + DELETE policy `"admin exclui membros"`. Frontend: hook `useExcluirMembro` em `useMembros.ts`, botão "Excluir" + modal em `Cotistas.tsx` (admin-only). Ver migração `0023`.
+- **2026-08-18**: Administração cross-grupo para master — 3 novas RPCs (`master_excluir_grupo`, `master_trocar_admin`, `master_excluir_membro`), DELETE policy `"master exclui grupos"`, hooks em `useAdministrador.ts`, UI expandida em `Administrador.tsx` (excluir grupo, trocar admin, badges de role, excluir membro). Ver migração `0024`.

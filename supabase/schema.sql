@@ -18,10 +18,9 @@
 --      VITE_SUPABASE_ANON_KEY do novo projeto no `.env`.
 --
 -- Gerado a partir de introspecção direta do banco de produção em
--- 2026-08-12 (não é a concatenação das migrações antigas — várias delas
--- estavam incompletas ou corrompidas no repositório; este arquivo reflete
--- o schema real, verificado via MCP do Supabase). Ver CLAUDE.md, seção
--- "Schema do banco", para o mapa de tabelas/funções em prosa.
+-- 2026-08-12, atualizado em 2026-08-18 (migrações 0023–0024: excluido,
+-- excluir_membro, master_excluir_grupo, master_trocar_admin,
+-- master_excluir_membro, DELETE policy em grupos).
 --
 -- A partir de agora, mudanças de schema devem ser aplicadas direto no
 -- banco (via MCP `apply_migration` ou SQL Editor) e depois refletidas
@@ -1059,6 +1058,106 @@ begin
 end;
 $function$;
 
+-- ── master_excluir_grupo ─────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.master_excluir_grupo(p_grupo_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $function$
+BEGIN
+  IF NOT eh_master() THEN
+    RAISE EXCEPTION 'Apenas o usuário master pode excluir grupos.';
+  END IF;
+
+  DELETE FROM reservas WHERE grupo_id = p_grupo_id;
+  DELETE FROM diario_bordo WHERE grupo_id = p_grupo_id;
+  DELETE FROM ajustes_horimetro WHERE grupo_id = p_grupo_id;
+  DELETE FROM lancamentos WHERE grupo_id = p_grupo_id;
+  DELETE FROM recorrentes_historico WHERE recorrente_id IN (SELECT id FROM recorrentes WHERE grupo_id = p_grupo_id);
+  DELETE FROM recorrentes WHERE grupo_id = p_grupo_id;
+  DELETE FROM confirmacoes_pagamento WHERE recorrente_id IN (
+    SELECT r.id FROM recorrentes r WHERE r.grupo_id = p_grupo_id
+  );
+  DELETE FROM rateio_manutencao WHERE manutencao_id IN (SELECT id FROM manutencoes WHERE grupo_id = p_grupo_id);
+  DELETE FROM manutencoes WHERE grupo_id = p_grupo_id;
+  DELETE FROM seguros WHERE grupo_id = p_grupo_id;
+  DELETE FROM informacoes_uteis WHERE grupo_id = p_grupo_id;
+  DELETE FROM avisos_embarcacao WHERE grupo_id = p_grupo_id;
+  DELETE FROM historico_custo_combustivel WHERE grupo_id = p_grupo_id;
+  DELETE FROM historico_custo_oleo WHERE grupo_id = p_grupo_id;
+  DELETE FROM feriados WHERE grupo_id = p_grupo_id;
+  DELETE FROM grupo_membros WHERE grupo_id = p_grupo_id;
+  DELETE FROM grupos WHERE id = p_grupo_id;
+END;
+$function$;
+
+-- ── master_trocar_admin ──────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.master_trocar_admin(
+  p_grupo_id uuid,
+  p_novo_admin_email text,
+  p_novo_admin_nome text DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $function$
+DECLARE
+  v_membro_existente RECORD;
+  v_nome text;
+BEGIN
+  IF NOT eh_master() THEN
+    RAISE EXCEPTION 'Apenas o usuário master pode trocar administradores.';
+  END IF;
+
+  IF p_novo_admin_email IS NULL OR trim(p_novo_admin_email) = '' THEN
+    RAISE EXCEPTION 'E-mail do novo administrador é obrigatório.';
+  END IF;
+
+  v_nome := coalesce(nullif(trim(p_novo_admin_nome), ''), split_part(p_novo_admin_email, '@', 1));
+
+  UPDATE grupo_membros
+  SET role = 'cotista'
+  WHERE grupo_id = p_grupo_id AND role = 'admin' AND ativo = true;
+
+  SELECT id, user_id INTO v_membro_existente
+  FROM grupo_membros
+  WHERE grupo_id = p_grupo_id
+    AND lower(email) = lower(trim(p_novo_admin_email))
+    AND excluido = false
+  LIMIT 1;
+
+  IF v_membro_existente IS NOT NULL THEN
+    UPDATE grupo_membros SET role = 'admin' WHERE id = v_membro_existente.id;
+  ELSE
+    INSERT INTO grupo_membros (grupo_id, user_id, nome, email, role, cotas, ativo)
+    VALUES (p_grupo_id, NULL, v_nome, trim(p_novo_admin_email), 'admin', 1, true);
+  END IF;
+END;
+$function$;
+
+-- ── master_excluir_membro ────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.master_excluir_membro(p_membro_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $function$
+BEGIN
+  IF NOT eh_master() THEN
+    RAISE EXCEPTION 'Apenas o usuário master pode excluir membros de outros grupos.';
+  END IF;
+
+  UPDATE grupo_membros
+  SET
+    nome = 'Excluído',
+    email = 'excluido-' || left(p_membro_id::text, 8),
+    telefone = NULL,
+    user_id = NULL,
+    ativo = false,
+    excluido = true
+  WHERE id = p_membro_id;
+END;
+$function$;
+
 CREATE OR REPLACE FUNCTION public.mensalidade_membro(p_membro_id uuid, p_mes_ref date DEFAULT CURRENT_DATE)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -1704,6 +1803,8 @@ create policy "admin atualiza config do grupo" on public.grupos
   for update using (eh_admin(id));
 create policy "master atualiza qualquer grupo" on public.grupos
   for update using (eh_master());
+create policy "master exclui grupos" on public.grupos
+  for delete using (eh_master());
 
 -- ── grupo_membros ─────────────────────────────────────────────
 create policy "admin adiciona membros" on public.grupo_membros
