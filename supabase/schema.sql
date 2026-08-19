@@ -1560,7 +1560,7 @@ AS $function$
   from reservas r
   where r.membro_id = p_membro_id
     and r.status <> 'cancelado'
-    and r.data < current_date
+    and r.data <= current_date
     and not exists (
       select 1 from diario_bordo d
       where d.autor_id = p_membro_id
@@ -1576,7 +1576,7 @@ CREATE OR REPLACE FUNCTION public.relatorios_pendentes_todos(p_grupo_id uuid)
 AS $function$
   select gm.id, gm.nome, count(*)::bigint
   from grupo_membros gm
-  join reservas r on r.membro_id = gm.id and r.status <> 'cancelado' and r.data < current_date
+  join reservas r on r.membro_id = gm.id and r.status <> 'cancelado' and r.data <= current_date
   where gm.grupo_id = p_grupo_id and gm.ativo
     and not exists (
       select 1 from diario_bordo d

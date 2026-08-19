@@ -1,12 +1,13 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Trophy, CalendarCheck2, CalendarDays, Users2, ShieldCheck } from "lucide-react";
+import { Trophy, CalendarCheck2, CalendarDays, Users2, ShieldCheck, ClipboardList } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMembros } from "@/lib/queries/useMembros";
 import { useFeriados } from "@/lib/queries/useFeriados";
 import { useReservas } from "@/lib/queries/useReservas";
 import { useSeguros } from "@/lib/queries/useSeguro";
+import { useRelatoriosPendentes } from "@/lib/queries/useDiario";
 import {
   calcularRanking,
   calcularProximosDias,
@@ -17,6 +18,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { Avatar } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 
 export default function Dashboard() {
   const { grupoAtual, membroAtual } = useAuth();
@@ -24,6 +26,7 @@ export default function Dashboard() {
   const { data: feriados } = useFeriados();
   const { data: reservas } = useReservas();
   const { data: seguros } = useSeguros();
+  const { data: pendentes } = useRelatoriosPendentes(membroAtual?.id);
 
   const feriadosSet = useMemo(() => construirSetFeriados(feriados ?? []), [feriados]);
 
@@ -51,6 +54,8 @@ export default function Dashboard() {
 
   const cotistasAtivos = (membros ?? []).filter((m) => m.ativo).length;
 
+  const pendentesHoje = (pendentes ?? []).filter((p) => p.data === hojeISO);
+
   const apoliceAtual = seguros?.[0] ?? null;
   let seguroValor = "—";
   let seguroSub = "nenhuma apólice cadastrada";
@@ -69,6 +74,33 @@ export default function Dashboard() {
         <p className="text-[13px] font-medium text-muted-foreground">Olá, {membroAtual?.nome?.split(" ")[0]} 👋</p>
         <h2 className="text-[22px] font-extrabold tracking-tight">{grupoAtual?.nome_recurso}</h2>
       </motion.div>
+
+      {!!pendentesHoje.length && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.03 }}
+        >
+          <Link to="/diario" className="block">
+            <div className="flex items-start gap-2.5 rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3">
+              <ClipboardList size={17} className="mt-0.5 shrink-0 text-warning" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-semibold text-warning">
+                  {pendentesHoje.length === 1
+                    ? "Você tem um relatório de uso pendente para hoje"
+                    : `Você tem ${pendentesHoje.length} relatórios de uso pendentes`}
+                </p>
+                <p className="mt-0.5 text-[12px] text-warning/70">
+                  {pendentesHoje.map((p) => p.periodo === "M" ? "Manhã" : "Tarde").join(" e ")} — registre no diário de bordo
+                </p>
+              </div>
+              <Button size="sm" variant="ghost" className="shrink-0 text-warning hover:bg-warning/10">
+                Preencher
+              </Button>
+            </div>
+          </Link>
+        </motion.div>
+      )}
 
       <motion.div
         initial={{ opacity: 0, y: 10 }}

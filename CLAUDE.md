@@ -92,7 +92,7 @@ página (src/pages/*.tsx)
 
 | Rota | Arquivo | Resumo | Modais | Gating |
 |---|---|---|---|---|
-| `/` | `Dashboard.tsx` | Ranking de prioridade, próximos dias livres, atalhos | — | nenhum |
+| `/` | `Dashboard.tsx` | Ranking de prioridade, próximos dias livres, atalhos, alerta de diário pendente no dia da reserva | — | nenhum |
 | `/calendario` | `Calendario.tsx` | Calendário mensal M/T, reservar/cancelar, FAB de reserva rápida | ModalNovaReserva, ModalDia | admin reserva/cancela por qualquer um; cotista só as próprias futuras |
 | `/orcamento` | `Orcamento.tsx` | Hub financeiro: mensalidades, óleo, projeção de manutenção por horas, lançamentos, recorrentes, confirmações | 6 (lanc, recorr, valor recorr, óleo, encerrar óleo, excluir lanc) | `podeGerenciarOrcamento` nas seções de gestão; `ehAdmin` para criar/alterar recorrentes |
 | `/manutencao` | `Manutencao.tsx` | Cards de manutenção, status por data OU horímetro (5 níveis), projeção por horas | ModalFormManutencao, modalConcluir, modalExcluir | `podeGerenciarOrcamento` |
@@ -144,8 +144,8 @@ Todo hook lê `grupoAtual`/`membroAtual` de `useAuth()` e filtra por `grupo_id`.
 - `useExcluirRegistroDiario()` → DELETE · invalida `["diario"]` + `["ultimo-horimetro"]`
 - `useAjustesHorimetro()` → `ajustes_horimetro WHERE grupo_id` · chave `["ajustes-horimetro", grupoId]`
 - `useRegistrarTrocaHorimetro()` → rpc `registrar_troca_horimetro` · invalida `["ajustes-horimetro"]` + `["ultimo-horimetro"]`
-- `useRelatoriosPendentes(membroId)` → rpc `relatorios_pendentes_membro` · chave `["relatorios-pendentes", membroId]`
-- `useRelatoriosPendentesTodos()` → rpc `relatorios_pendentes_todos` · chave `["relatorios-pendentes-todos", grupoId]`
+- `useRelatoriosPendentes(membroId)` → rpc `relatorios_pendentes_membro` (inclui reservas de hoje e anteriores) · chave `["relatorios-pendentes", membroId]`
+- `useRelatoriosPendentesTodos()` → rpc `relatorios_pendentes_todos` (inclui reservas de hoje e anteriores) · chave `["relatorios-pendentes-todos", grupoId]`
 
 **useFeriados.ts**:
 - `useFeriados()` → `feriados WHERE grupo_id` · chave `["feriados", grupoId]`
@@ -313,3 +313,4 @@ Redesenhado em 2026-08-12 depois de um bug real (o valor exibido chegou a ficar 
 - **2026-08-18**: Administração cross-grupo para master — 3 novas RPCs (`master_excluir_grupo`, `master_trocar_admin`, `master_excluir_membro`), DELETE policy `"master exclui grupos"`, hooks em `useAdministrador.ts`, UI expandida em `Administrador.tsx` (excluir grupo, trocar admin, badges de role, excluir membro). Ver migração `0024`.
 - **2026-08-18**: Edição de nome+e-mail de membros — hook `useEditarMembro` (update direto `grupo_membros`, requer RLS policy `"master edita membros"`), modal combinado para editar nome e e-mail de qualquer membro na tela `Administrador.tsx`. Requer policy SQL: `create policy "master edita membros" on public.grupo_membros for update using (eh_master());`
 - **2026-08-18**: Reescrita completa do CLAUDE.md — auditoria 1:1 de todas as 16 páginas, 13 arquivos de hooks (65 hooks), 17 tabelas, 63 políticas RLS, 56 funções, 2 triggers, 1 cron job. Seções adicionadas: cache keys compartilhadas, políticas RLS por tabela, lista completa de funções RPC, particularidades conhecidas expandidas.
+- **2026-08-18**: Diário pendente no dia da reserva — `relatorios_pendentes_membro` e `relatorios_pendentes_todos` agora incluem reservas de hoje (`<= current_date` ao invés de `<`). Dashboard mostra alerta warning com link para `/diario` quando cotista tem relatório pendente no dia. Ver migração `0025_diario_pendente_dia_reserva.sql`.
