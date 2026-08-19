@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ShieldEllipsis, PlusCircle, KeyRound, Send, Pencil, Users, Trash2, ArrowLeftRight, UserMinus } from "lucide-react";
+import { ShieldEllipsis, PlusCircle, KeyRound, Send, Pencil, Users, Trash2, ArrowLeftRight, UserMinus, Mail } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { useTodosGrupos, useMembrosDoGrupo, useEditarNomeGrupo, useExcluirGrupo, useTrocarAdmin, useExcluirMembroMaster } from "@/lib/queries/useAdministrador";
+import { useTodosGrupos, useMembrosDoGrupo, useEditarNomeGrupo, useExcluirGrupo, useTrocarAdmin, useExcluirMembroMaster, useEditarEmailMembro } from "@/lib/queries/useAdministrador";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +42,7 @@ export default function Administrador() {
   const excluirGrupo = useExcluirGrupo();
   const trocarAdmin = useTrocarAdmin();
   const excluirMembroMaster = useExcluirMembroMaster();
+  const editarEmailMembro = useEditarEmailMembro();
 
   // Modal: renomear grupo
   const [modalNomeAberto, setModalNomeAberto] = useState(false);
@@ -59,6 +60,11 @@ export default function Administrador() {
   // Modal: excluir membro
   const [modalExcluirMembroAberto, setModalExcluirMembroAberto] = useState(false);
   const [membroParaExcluir, setMembroParaExcluir] = useState<{ id: string; nome: string } | null>(null);
+
+  // Modal: editar email
+  const [modalEditarEmailAberto, setModalEditarEmailAberto] = useState(false);
+  const [membroParaEditarEmail, setMembroParaEditarEmail] = useState<{ id: string; nome: string; email: string } | null>(null);
+  const [novoEmail, setNovoEmail] = useState("");
 
   // Reset de senha
   const [emailReset, setEmailReset] = useState("");
@@ -148,6 +154,30 @@ export default function Administrador() {
       setMembroParaExcluir(null);
     } catch (e) {
       toast.erro(e instanceof Error ? e.message : "Erro ao excluir membro.");
+    }
+  }
+
+  // ── Editar email ──────────────────────────────────────
+
+  function abrirEditarEmail(membro: { id: string; nome: string; email: string }) {
+    setMembroParaEditarEmail(membro);
+    setNovoEmail(membro.email);
+    setModalEditarEmailAberto(true);
+  }
+
+  async function confirmarEditarEmail() {
+    if (!membroParaEditarEmail) return;
+    if (!novoEmail.trim()) { toast.erro("Digite um e-mail."); return; }
+    try {
+      await editarEmailMembro.mutateAsync({
+        membroId: membroParaEditarEmail.id,
+        novoEmail: novoEmail.trim(),
+      });
+      toast.sucesso("E-mail atualizado com sucesso!");
+      setModalEditarEmailAberto(false);
+      setMembroParaEditarEmail(null);
+    } catch (e) {
+      toast.erro(e instanceof Error ? e.message : "Erro ao atualizar e-mail.");
     }
   }
 
@@ -265,6 +295,13 @@ export default function Administrador() {
                         </div>
                       </div>
                       <div className="flex shrink-0 gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => abrirEditarEmail({ id: m.id, nome: m.nome, email: m.email })}
+                        >
+                          <Mail size={14} />
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"
@@ -399,6 +436,30 @@ export default function Administrador() {
               disabled={excluirMembroMaster.isPending}
             >
               {excluirMembroMaster.isPending ? "Excluindo..." : "Excluir membro"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Modal: editar email ────────────────────────────── */}
+      <Modal aberto={modalEditarEmailAberto} aoFechar={() => setModalEditarEmailAberto(false)} titulo="Editar e-mail">
+        <div className="flex flex-col gap-3">
+          <p className="text-[13px] text-muted-foreground">
+            Atualizar o e-mail de <strong>{membroParaEditarEmail?.nome}</strong>.
+          </p>
+          <div className="flex flex-col gap-1.5">
+            <Label>Novo e-mail</Label>
+            <Input
+              type="email"
+              value={novoEmail}
+              onChange={(e) => setNovoEmail(e.target.value)}
+              placeholder="email@exemplo.com"
+            />
+          </div>
+          <div className="mt-2 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setModalEditarEmailAberto(false)}>Cancelar</Button>
+            <Button onClick={confirmarEditarEmail} disabled={editarEmailMembro.isPending || !novoEmail.trim()}>
+              {editarEmailMembro.isPending ? "Salvando..." : "Salvar"}
             </Button>
           </div>
         </div>

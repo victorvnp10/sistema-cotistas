@@ -94,3 +94,19 @@ export function useExcluirMembroMaster() {
     },
   });
 }
+
+export function useEditarEmailMembro() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { membroId: string; novoEmail: string }) => {
+      const { error } = await supabase.rpc("master_editar_email_membro", {
+        p_membro_id: payload.membroId,
+        p_novo_email: payload.novoEmail,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["master-membros-grupo"] });
+    },
+  });
+}
