@@ -489,6 +489,7 @@ function SecaoOleo() {
 
   const [modo, setModo] = useState<"novo" | "editar" | null>(null);
   const [custoGalao, setCustoGalao] = useState("");
+  const [custoEstimado, setCustoEstimado] = useState("");
   const [dataInicio, setDataInicio] = useState(new Date().toISOString().slice(0, 10));
 
   const [modalFechar, setModalFechar] = useState<typeof atual>(null);
@@ -497,9 +498,11 @@ function SecaoOleo() {
   function abrir(m: "novo" | "editar") {
     if (m === "editar" && atual) {
       setCustoGalao(String(atual.custo_galao));
+      setCustoEstimado(atual.custo_estimado_por_hora != null ? String(atual.custo_estimado_por_hora) : "");
       setDataInicio(atual.data_inicio);
     } else {
       setCustoGalao("");
+      setCustoEstimado("");
       setDataInicio(new Date().toISOString().slice(0, 10));
     }
     setModo(m);
@@ -507,12 +510,13 @@ function SecaoOleo() {
 
   async function salvar() {
     if (!custoGalao) { toast.erro("Preencha o custo do galão."); return; }
+    const estimado = custoEstimado ? Number(custoEstimado) : undefined;
     try {
       if (modo === "editar" && atual) {
-        await editar.mutateAsync({ id: atual.id, custoGalao: Number(custoGalao), dataInicio });
+        await editar.mutateAsync({ id: atual.id, custoGalao: Number(custoGalao), dataInicio, custoEstimado: estimado });
         toast.sucesso("Atualizado!");
       } else {
-        await definir.mutateAsync({ custoGalao: Number(custoGalao), dataInicio });
+        await definir.mutateAsync({ custoGalao: Number(custoGalao), dataInicio, custoEstimado: estimado });
         toast.sucesso("Novo galão registrado!");
       }
       setModo(null);
@@ -565,6 +569,11 @@ function SecaoOleo() {
                   {g.custo_por_hora !== null ? `${formatarMoeda(g.custo_por_hora)}/h` : "aguardando uso"}
                 </span>
               </div>
+              {!g.data_fim && g.custo_estimado_por_hora != null && (
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  Estimativa: {formatarMoeda(g.custo_estimado_por_hora)}/h · Cálculo real: {g.horas_consumidas > 0 ? `${formatarMoeda(g.custo_galao / g.horas_consumidas)}/h` : "aguardando uso"}
+                </p>
+              )}
               {!g.data_fim && (
                 <button
                   className="mt-2 text-[12px] font-bold text-royal hover:underline"
@@ -578,8 +587,8 @@ function SecaoOleo() {
         </div>
       )}
       <p className="mt-3 text-[11.5px] text-muted-foreground">
-        Cobrado com 1 mês de atraso, proporcional às horas de uso de cada cotista, usando o preço do galão
-        em uso no momento (custo do galão ÷ horas consumidas por ele até agora).
+        Cobrado com 1 mês de atraso, proporcional às horas de uso de cada cotista. Enquanto o galão estiver aberto,
+        o custo estimado por hora é usado na projeção da mensalidade. O custo real (galão ÷ horas) só entra quando o galão é encerrado.
       </p>
 
       <Modal aberto={!!modo} aoFechar={() => setModo(null)} titulo={modo === "editar" ? "Editar galão atual" : "Novo galão"}>
@@ -591,6 +600,10 @@ function SecaoOleo() {
           <div className="flex flex-col gap-1.5">
             <Label>Custo do galão (R$)</Label>
             <Input type="number" min={0} step={0.01} value={custoGalao} onChange={(e) => setCustoGalao(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Custo estimado por hora (R$/h) <span className="text-muted-foreground">opcional</span></Label>
+            <Input type="number" min={0} step={0.01} value={custoEstimado} onChange={(e) => setCustoEstimado(e.target.value)} />
           </div>
           {modo === "novo" && (
             <p className="text-[11.5px] text-muted-foreground">

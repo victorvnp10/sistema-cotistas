@@ -23,11 +23,12 @@ export function useDefinirCustoOleo() {
   const queryClient = useQueryClient();
   const { grupoAtual } = useAuth();
   return useMutation({
-    mutationFn: async (payload: { custoGalao: number; dataInicio?: string }) => {
+    mutationFn: async (payload: { custoGalao: number; dataInicio?: string; custoEstimado?: number }) => {
       const { error } = await supabase.rpc("definir_custo_oleo", {
         p_grupo_id: grupoAtual!.id,
         p_custo_galao: payload.custoGalao,
         p_data_inicio: payload.dataInicio,
+        p_custo_estimado_por_hora: payload.custoEstimado ?? undefined,
       });
       if (error) throw error;
     },
@@ -39,11 +40,12 @@ export function useEditarCustoOleoAtual() {
   const queryClient = useQueryClient();
   const { grupoAtual } = useAuth();
   return useMutation({
-    mutationFn: async (payload: { id: string; custoGalao: number; dataInicio: string }) => {
+    mutationFn: async (payload: { id: string; custoGalao: number; dataInicio: string; custoEstimado?: number }) => {
       const { error } = await supabase.rpc("editar_custo_oleo_atual", {
         p_id: payload.id,
         p_custo_galao: payload.custoGalao,
         p_data_inicio: payload.dataInicio,
+        p_custo_estimado_por_hora: payload.custoEstimado ?? undefined,
       });
       if (error) throw error;
     },

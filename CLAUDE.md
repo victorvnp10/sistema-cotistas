@@ -174,8 +174,8 @@ Todo hook lê `grupoAtual`/`membroAtual` de `useAuth()` e filtra por `grupo_id`.
 
 **useOleo.ts**:
 - `useResumoOleo()` → rpc `resumo_custo_oleo` · chave `["resumo-oleo", grupoId]`
-- `useDefinirCustoOleo()` → rpc `definir_custo_oleo` · invalida `["resumo-oleo"]` + `["mensalidade-membro"]` + `["mensalidades-todos"]` + `["saldo-atual"]` + `["lancamentos"]`
-- `useEditarCustoOleoAtual()` → rpc `editar_custo_oleo_atual` · mesmas invalidações
+- `useDefinirCustoOleo()` → rpc `definir_custo_oleo` (aceita `custoEstimado` opcional) · invalida `["resumo-oleo"]` + `["mensalidade-membro"]` + `["mensalidades-todos"]` + `["saldo-atual"]` + `["lancamentos"]`
+- `useEditarCustoOleoAtual()` → rpc `editar_custo_oleo_atual` (aceita `custoEstimado` opcional) · mesmas invalidações
 - `useFecharCustoOleo()` → rpc `fechar_custo_oleo` · mesmas invalidações
 
 **useOrcamento.ts** (maior arquivo, 13 hooks):
@@ -237,7 +237,7 @@ O schema completo e executável vive em **`supabase/schema.sql`** — um único 
 
 **Orçamento**: `lancamentos` (id, grupo_id, tipo receita/despesa, descricao, valor, valor_por_cota, data, lancado_por, origem manual/caixa_inicial/ajuste_caixa/recorrente/manutencao_horas/seguro, origem_ref_id, observacao, criado_em) · `recorrentes` (id, grupo_id, tipo, descricao, valor_atual, dia_cobranca, ativo, data_inicio, data_fim, subtipo, criado_em, atualizado_em) · `recorrentes_historico` (id, recorrente_id, valor_anterior, valor_novo, alterado_por, vigencia_inicio, vigencia_fim, criado_em) · `confirmacoes_pagamento` (id, recorrente_id, membro_id, mes_referencia char(7), confirmado, data_confirmacao, confirmado_por; unique recorrente_id+membro_id+mes_referencia)
 
-**Custos variáveis**: `historico_custo_combustivel` (id, grupo_id, consumo_por_hora, custo_unidade, unidades, custo_por_hora GENERATED, vigencia_inicio, vigencia_fim, alterado_por, criado_em) · `historico_custo_oleo` (id, grupo_id, custo_galao, data_inicio, data_fim, alterado_por, criado_em)
+**Custos variáveis**: `historico_custo_combustivel` (id, grupo_id, consumo_por_hora, custo_unidade, unidades, custo_por_hora GENERATED, vigencia_inicio, vigencia_fim, alterado_por, criado_em) · `historico_custo_oleo` (id, grupo_id, custo_galao, custo_estimado_por_hora nullable, data_inicio, data_fim, alterado_por, criado_em)
 
 **Manutenção**: `manutencoes` (id, grupo_id, descricao, periodicidade, tipo_gatilho data/horas, proxima_data, intervalo_horas, horimetro_base, custo_previsto, custo_real, feito, data_execucao, feito_por, observacao, criado_em, data_inicio_ciclo) · `rateio_manutencao` (id, manutencao_id, descricao, membro_id, horas, valor, data, confirmado, data_confirmacao)
 
@@ -314,3 +314,4 @@ Redesenhado em 2026-08-12 depois de um bug real (o valor exibido chegou a ficar 
 - **2026-08-18**: Edição de nome+e-mail de membros — hook `useEditarMembro` (update direto `grupo_membros`, requer RLS policy `"master edita membros"`), modal combinado para editar nome e e-mail de qualquer membro na tela `Administrador.tsx`. Requer policy SQL: `create policy "master edita membros" on public.grupo_membros for update using (eh_master());`
 - **2026-08-18**: Reescrita completa do CLAUDE.md — auditoria 1:1 de todas as 16 páginas, 13 arquivos de hooks (65 hooks), 17 tabelas, 63 políticas RLS, 56 funções, 2 triggers, 1 cron job. Seções adicionadas: cache keys compartilhadas, políticas RLS por tabela, lista completa de funções RPC, particularidades conhecidas expandidas.
 - **2026-08-18**: Diário pendente no dia da reserva — `relatorios_pendentes_membro` e `relatorios_pendentes_todos` agora incluem reservas de hoje (`<= current_date` ao invés de `<`). Dashboard mostra alerta warning com link para `/diario` quando cotista tem relatório pendente no dia. Ver migração `0025_diario_pendente_dia_reserva.sql`.
+- **2026-08-18**: Custo estimado por hora do óleo — coluna `custo_estimado_por_hora` em `historico_custo_oleo`, usada como projeção enquanto galão aberto (antes, custo_galao/horas resultava em valor inflado com pouco uso). Funções alteradas: `custo_oleo_por_hora_vigente`, `resumo_custo_oleo`, `definir_custo_oleo`, `editar_custo_oleo_atual`. UI: campo opcional no modal novo/editar galão, exibição de estimativa vs real no card. Ver migração `0026_custo_estimado_oleo.sql`.

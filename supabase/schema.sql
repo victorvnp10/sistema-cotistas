@@ -197,6 +197,7 @@ create table public.historico_custo_oleo (
   id uuid primary key default gen_random_uuid(),
   grupo_id uuid not null references public.grupos(id),
   custo_galao numeric not null check (custo_galao >= 0),
+  custo_estimado_por_hora numeric,
   data_inicio date not null,
   data_fim date,
   alterado_por uuid references public.grupo_membros(id),
@@ -726,6 +727,10 @@ begin
 
   if v_galao.id is null then return 0; end if;
 
+  if v_galao.data_fim is null and v_galao.custo_estimado_por_hora is not null then
+    return v_galao.custo_estimado_por_hora;
+  end if;
+
   v_horas := horas_grupo_periodo(p_grupo_id, v_galao.data_inicio, v_galao.data_fim);
   if v_horas <= 0 then return 0; end if;
 
@@ -778,7 +783,7 @@ begin
 end;
 $function$;
 
-CREATE OR REPLACE FUNCTION public.definir_custo_oleo(p_grupo_id uuid, p_custo_galao numeric, p_data_inicio date DEFAULT CURRENT_DATE)
+CREATE OR REPLACE FUNCTION public.definir_custo_oleo(p_grupo_id uuid, p_custo_galao numeric, p_data_inicio date DEFAULT CURRENT_DATE, p_custo_estimado_por_hora numeric DEFAULT NULL)
  RETURNS historico_custo_oleo
  LANGUAGE plpgsql
 AS $function$
@@ -793,8 +798,8 @@ begin
    where grupo_id = p_grupo_id and data_fim is null
      and data_inicio < p_data_inicio;
 
-  insert into historico_custo_oleo (grupo_id, custo_galao, data_inicio, alterado_por)
-  values (p_grupo_id, p_custo_galao, p_data_inicio, v_membro_id)
+  insert into historico_custo_oleo (grupo_id, custo_galao, data_inicio, custo_estimado_por_hora, alterado_por)
+  values (p_grupo_id, p_custo_galao, p_data_inicio, p_custo_estimado_por_hora, v_membro_id)
   returning * into v_row;
 
   return v_row;
@@ -831,14 +836,15 @@ begin
 end;
 $function$;
 
-CREATE OR REPLACE FUNCTION public.editar_custo_oleo_atual(p_id uuid, p_custo_galao numeric, p_data_inicio date)
+CREATE OR REPLACE FUNCTION public.editar_custo_oleo_atual(p_id uuid, p_custo_galao numeric, p_data_inicio date, p_custo_estimado_por_hora numeric DEFAULT NULL)
  RETURNS void
  LANGUAGE plpgsql
 AS $function$
 begin
   update historico_custo_oleo
      set custo_galao = p_custo_galao,
-         data_inicio = coalesce(p_data_inicio, data_inicio)
+         data_inicio = coalesce(p_data_inicio, data_inicio),
+         custo_estimado_por_hora = p_custo_estimado_por_hora
    where id = p_id;
 end;
 $function$;
@@ -1654,23 +1660,35 @@ AS $function$
     ), 0);
 $function$;
 
+DROP FUNCTION IF EXISTS public.resumo_custo_oleo(uuid);
 CREATE OR REPLACE FUNCTION public.resumo_custo_oleo(p_grupo_id uuid)
- RETURNS TABLE(id uuid, custo_galao numeric, data_inicio date, data_fim date, horas_consumidas numeric, custo_por_hora numeric)
+ RETURNS TABLE(id uuid, custo_galao numeric, data_inicio date, data_fim date, horas_consumidas numeric, custo_estimado_por_hora numeric, custo_por_hora numeric)
  LANGUAGE plpgsql
  STABLE
 AS $function$
 declare
   r record;
   v_horas numeric;
+  v_custo_efetivo numeric;
 begin
   for r in select * from historico_custo_oleo where grupo_id = p_grupo_id order by data_inicio desc loop
     v_horas := horas_grupo_periodo(p_grupo_id, r.data_inicio, r.data_fim);
+
+    if r.data_fim is null and r.custo_estimado_por_hora is not null then
+      v_custo_efetivo := r.custo_estimado_por_hora;
+    elsif v_horas > 0 then
+      v_custo_efetivo := round(r.custo_galao / v_horas, 4);
+    else
+      v_custo_efetivo := null;
+    end if;
+
     id := r.id;
     custo_galao := r.custo_galao;
     data_inicio := r.data_inicio;
     data_fim := r.data_fim;
     horas_consumidas := v_horas;
-    custo_por_hora := case when v_horas > 0 then round(r.custo_galao / v_horas, 4) else null end;
+    custo_estimado_por_hora := r.custo_estimado_por_hora;
+    custo_por_hora := v_custo_efetivo;
     return next;
   end loop;
 end;
