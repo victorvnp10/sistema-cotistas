@@ -95,14 +95,17 @@ export function useExcluirMembroMaster() {
   });
 }
 
-export function useEditarEmailMembro() {
+export function useEditarMembro() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { membroId: string; novoEmail: string }) => {
-      const { error } = await supabase.rpc("master_editar_email_membro", {
-        p_membro_id: payload.membroId,
-        p_novo_email: payload.novoEmail,
-      });
+    mutationFn: async (payload: { membroId: string; nome?: string; email?: string }) => {
+      const update: Record<string, string> = {};
+      if (payload.nome !== undefined) update.nome = payload.nome;
+      if (payload.email !== undefined) update.email = payload.email;
+      const { error } = await supabase
+        .from("grupo_membros")
+        .update(update)
+        .eq("id", payload.membroId);
       if (error) throw error;
     },
     onSuccess: () => {

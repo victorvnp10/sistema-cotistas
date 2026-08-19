@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ShieldEllipsis, PlusCircle, KeyRound, Send, Pencil, Users, Trash2, ArrowLeftRight, UserMinus, Mail } from "lucide-react";
+import { ShieldEllipsis, PlusCircle, KeyRound, Send, Pencil, Users, Trash2, ArrowLeftRight, UserMinus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { useTodosGrupos, useMembrosDoGrupo, useEditarNomeGrupo, useExcluirGrupo, useTrocarAdmin, useExcluirMembroMaster, useEditarEmailMembro } from "@/lib/queries/useAdministrador";
+import { useTodosGrupos, useMembrosDoGrupo, useEditarNomeGrupo, useExcluirGrupo, useTrocarAdmin, useExcluirMembroMaster, useEditarMembro } from "@/lib/queries/useAdministrador";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +42,7 @@ export default function Administrador() {
   const excluirGrupo = useExcluirGrupo();
   const trocarAdmin = useTrocarAdmin();
   const excluirMembroMaster = useExcluirMembroMaster();
-  const editarEmailMembro = useEditarEmailMembro();
+  const editarMembro = useEditarMembro();
 
   // Modal: renomear grupo
   const [modalNomeAberto, setModalNomeAberto] = useState(false);
@@ -61,10 +61,11 @@ export default function Administrador() {
   const [modalExcluirMembroAberto, setModalExcluirMembroAberto] = useState(false);
   const [membroParaExcluir, setMembroParaExcluir] = useState<{ id: string; nome: string } | null>(null);
 
-  // Modal: editar email
-  const [modalEditarEmailAberto, setModalEditarEmailAberto] = useState(false);
-  const [membroParaEditarEmail, setMembroParaEditarEmail] = useState<{ id: string; nome: string; email: string } | null>(null);
-  const [novoEmail, setNovoEmail] = useState("");
+  // Modal: editar membro (nome + email)
+  const [modalEditarMembroAberto, setModalEditarMembroAberto] = useState(false);
+  const [membroParaEditar, setMembroParaEditar] = useState<{ id: string; nome: string; email: string } | null>(null);
+  const [editarNomeMembro, setEditarNomeMembro] = useState("");
+  const [editarEmailMembro, setEditarEmailMembro] = useState("");
 
   // Reset de senha
   const [emailReset, setEmailReset] = useState("");
@@ -157,27 +158,30 @@ export default function Administrador() {
     }
   }
 
-  // ── Editar email ──────────────────────────────────────
+  // ── Editar membro (nome + email) ───────────────────────
 
-  function abrirEditarEmail(membro: { id: string; nome: string; email: string }) {
-    setMembroParaEditarEmail(membro);
-    setNovoEmail(membro.email);
-    setModalEditarEmailAberto(true);
+  function abrirEditarMembro(membro: { id: string; nome: string; email: string }) {
+    setMembroParaEditar(membro);
+    setEditarNomeMembro(membro.nome);
+    setEditarEmailMembro(membro.email);
+    setModalEditarMembroAberto(true);
   }
 
-  async function confirmarEditarEmail() {
-    if (!membroParaEditarEmail) return;
-    if (!novoEmail.trim()) { toast.erro("Digite um e-mail."); return; }
+  async function confirmarEditarMembro() {
+    if (!membroParaEditar) return;
+    if (!editarNomeMembro.trim()) { toast.erro("Digite um nome."); return; }
+    if (!editarEmailMembro.trim()) { toast.erro("Digite um e-mail."); return; }
     try {
-      await editarEmailMembro.mutateAsync({
-        membroId: membroParaEditarEmail.id,
-        novoEmail: novoEmail.trim(),
+      await editarMembro.mutateAsync({
+        membroId: membroParaEditar.id,
+        nome: editarNomeMembro.trim(),
+        email: editarEmailMembro.trim(),
       });
-      toast.sucesso("E-mail atualizado com sucesso!");
-      setModalEditarEmailAberto(false);
-      setMembroParaEditarEmail(null);
+      toast.sucesso("Membro atualizado com sucesso!");
+      setModalEditarMembroAberto(false);
+      setMembroParaEditar(null);
     } catch (e) {
-      toast.erro(e instanceof Error ? e.message : "Erro ao atualizar e-mail.");
+      toast.erro(e instanceof Error ? e.message : "Erro ao atualizar membro.");
     }
   }
 
@@ -298,9 +302,9 @@ export default function Administrador() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => abrirEditarEmail({ id: m.id, nome: m.nome, email: m.email })}
+                          onClick={() => abrirEditarMembro({ id: m.id, nome: m.nome, email: m.email })}
                         >
-                          <Mail size={14} />
+                          <Pencil size={14} />
                         </Button>
                         <Button
                           size="sm"
@@ -441,25 +445,29 @@ export default function Administrador() {
         </div>
       </Modal>
 
-      {/* ── Modal: editar email ────────────────────────────── */}
-      <Modal aberto={modalEditarEmailAberto} aoFechar={() => setModalEditarEmailAberto(false)} titulo="Editar e-mail">
+      {/* ── Modal: editar membro ────────────────────────────── */}
+      <Modal aberto={modalEditarMembroAberto} aoFechar={() => setModalEditarMembroAberto(false)} titulo="Editar membro">
         <div className="flex flex-col gap-3">
-          <p className="text-[13px] text-muted-foreground">
-            Atualizar o e-mail de <strong>{membroParaEditarEmail?.nome}</strong>.
-          </p>
           <div className="flex flex-col gap-1.5">
-            <Label>Novo e-mail</Label>
+            <Label>Nome</Label>
+            <Input
+              value={editarNomeMembro}
+              onChange={(e) => setEditarNomeMembro(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>E-mail</Label>
             <Input
               type="email"
-              value={novoEmail}
-              onChange={(e) => setNovoEmail(e.target.value)}
+              value={editarEmailMembro}
+              onChange={(e) => setEditarEmailMembro(e.target.value)}
               placeholder="email@exemplo.com"
             />
           </div>
           <div className="mt-2 flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setModalEditarEmailAberto(false)}>Cancelar</Button>
-            <Button onClick={confirmarEditarEmail} disabled={editarEmailMembro.isPending || !novoEmail.trim()}>
-              {editarEmailMembro.isPending ? "Salvando..." : "Salvar"}
+            <Button variant="ghost" onClick={() => setModalEditarMembroAberto(false)}>Cancelar</Button>
+            <Button onClick={confirmarEditarMembro} disabled={editarMembro.isPending || !editarNomeMembro.trim() || !editarEmailMembro.trim()}>
+              {editarMembro.isPending ? "Salvando..." : "Salvar"}
             </Button>
           </div>
         </div>

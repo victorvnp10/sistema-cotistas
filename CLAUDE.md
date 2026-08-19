@@ -109,7 +109,7 @@ página (src/pages/*.tsx)
 
 Todo hook lê `grupoAtual`/`membroAtual` de `useAuth()` e filtra por `grupo_id`. `rpc` = chama função Postgres; sem prefixo = select/insert/update/delete direto na tabela indicada.
 
-**useAdministrador.ts** (master): `useTodosGrupos` → tabela `grupos` · `useMembrosDoGrupo` → `grupo_membros` · `useEditarNomeGrupo` → rpc `master_editar_nome_grupo` · `useExcluirGrupo` → rpc `master_excluir_grupo` · `useTrocarAdmin` → rpc `master_trocar_admin` · `useExcluirMembroMaster` → rpc `master_excluir_membro` · `useEditarEmailMembro` → rpc `master_editar_email_membro`
+**useAdministrador.ts** (master): `useTodosGrupos` → tabela `grupos` · `useMembrosDoGrupo` → `grupo_membros` · `useEditarNomeGrupo` → rpc `master_editar_nome_grupo` · `useExcluirGrupo` → rpc `master_excluir_grupo` · `useTrocarAdmin` → rpc `master_trocar_admin` · `useExcluirMembroMaster` → rpc `master_excluir_membro` · `useEditarMembro` → update direto `grupo_membros` (nome+email, requer RLS policy `"master edita membros"`)
 
 **useAvisos.ts**: `useAvisosAtivos`/`useAvisos` → `avisos_embarcacao` · `useCriarAviso`/`useResolverAviso`/`useExcluirAviso` → CRUD `avisos_embarcacao`
 
@@ -168,7 +168,7 @@ O schema completo e executável vive em **`supabase/schema.sql`** — um único 
 - *Uso/horas*: `horas_grupo_periodo`, `horas_membro_periodo`, `horas_por_membro_periodo`, `conta_para_escala`
 - *Seguro*: `renovar_seguro`
 - *Painel do gestor*: `painel_gestor`
-- *Grupo/admin*: `criar_grupo` (SECURITY DEFINER), `master_editar_nome_grupo`, `master_excluir_grupo`, `master_trocar_admin`, `master_excluir_membro`, `master_editar_email_membro`, `eh_admin`/`eh_gestor_ou_admin`/`eh_membro_ativo`/`eh_master` (todas SECURITY DEFINER, usadas em política RLS)
+- *Grupo/admin*: `criar_grupo` (SECURITY DEFINER), `master_editar_nome_grupo`, `master_excluir_grupo`, `master_trocar_admin`, `master_excluir_membro`, `eh_admin`/`eh_gestor_ou_admin`/`eh_membro_ativo`/`eh_master` (todas SECURITY DEFINER, usadas em política RLS)
 - *Sistema*: `processar_recorrentes_do_dia` (SECURITY DEFINER, chamada diariamente às 06:00 UTC por um job do `pg_cron`, ver fim de `supabase/schema.sql`)
 
 **Triggers**: `auth.users` AFTER INSERT → `vincular_convite_pendente()` · `grupo_membros` BEFORE INSERT → `vincular_membro_a_conta_existente()` (ambos SECURITY DEFINER, ver fluxo de convite acima)
@@ -202,4 +202,4 @@ Redesenhado em 2026-08-12 depois de um bug real (o valor exibido chegou a ficar 
 - **2026-08-12**: Limpeza completa do repositório — removidos ~87 arquivos: todo o lixo de conteúdo trocado/corrompido na raiz (dezenas de `.tsx`/`.ts`/`.sql` soltos, mais `sistema-cotistas-completo.zip`/`.rar`), o código morto `src/pages/Reservar.tsx` e a duplicata órfã `src/pages/useOleo.ts`. Recriado `.env.example` de verdade (o antigo tinha conteúdo trocado). Substituída a pasta fragmentada `supabase/migrations/` (gap 0010–0020, alguns arquivos já corrompidos) por **`supabase/schema.sql`** único, gerado por introspecção completa do banco de produção — extensões, 17 tabelas, 52 funções, 2 triggers, 61 políticas RLS e o job do pg_cron. Esse arquivo agora é a fonte da verdade para clonar o sistema; ver "Schema do banco" acima para o novo fluxo de trabalho.
 - **2026-08-12**: Adicionado `excluido` em `grupo_membros` + RPC `excluir_membro` (anonymize cross-grupo) + DELETE policy `"admin exclui membros"`. Frontend: hook `useExcluirMembro` em `useMembros.ts`, botão "Excluir" + modal em `Cotistas.tsx` (admin-only). Ver migração `0023`.
 - **2026-08-18**: Administração cross-grupo para master — 3 novas RPCs (`master_excluir_grupo`, `master_trocar_admin`, `master_excluir_membro`), DELETE policy `"master exclui grupos"`, hooks em `useAdministrador.ts`, UI expandida em `Administrador.tsx` (excluir grupo, trocar admin, badges de role, excluir membro). Ver migração `0024`.
-- **2026-08-18**: Edição de e-mail de membros — nova RPC `master_editar_email_membro` (SECURITY DEFINER, verificação `eh_master()`, validação de formato), hook `useEditarEmailMembro` em `useAdministrador.ts`, botão de editar e-mail por membro na tela `Administrador.tsx` com modal de confirmação.
+- **2026-08-18**: Edição de nome+e-mail de membros — hook `useEditarMembro` (update direto `grupo_membros`, requer RLS policy `"master edita membros"`), modal combinado para editar nome e e-mail de qualquer membro na tela `Administrador.tsx`. Requer policy SQL: `create policy "master edita membros" on public.grupo_membros for update using (eh_master());`
