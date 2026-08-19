@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Wallet, PlusCircle, Repeat, CheckCircle2, Droplet, Clock, Pencil } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -495,6 +495,31 @@ function SecaoOleo() {
   const [modalFechar, setModalFechar] = useState<typeof atual>(null);
   const [dataFim, setDataFim] = useState(new Date().toISOString().slice(0, 10));
 
+  const [estimadoLocal, setEstimadoLocal] = useState("");
+  const [salvandoEstimado, setSalvandoEstimado] = useState(false);
+
+  useEffect(() => {
+    if (atual) setEstimadoLocal(atual.custo_estimado_por_hora != null ? String(atual.custo_estimado_por_hora) : "");
+  }, [atual?.id, atual?.custo_estimado_por_hora]);
+
+  async function salvarEstimadoLocal() {
+    if (!atual) return;
+    setSalvandoEstimado(true);
+    try {
+      await editar.mutateAsync({
+        id: atual.id,
+        custoGalao: atual.custo_galao,
+        dataInicio: atual.data_inicio,
+        custoEstimado: estimadoLocal ? Number(estimadoLocal) : undefined,
+      });
+      toast.sucesso("Custo estimado atualizado!");
+    } catch (e) {
+      toast.erro(e instanceof Error ? e.message : "Erro ao salvar.");
+    } finally {
+      setSalvandoEstimado(false);
+    }
+  }
+
   function abrir(m: "novo" | "editar") {
     if (m === "editar" && atual) {
       setCustoGalao(String(atual.custo_galao));
@@ -573,6 +598,35 @@ function SecaoOleo() {
                 <p className="mt-1.5 text-[11px] text-muted-foreground">
                   Estimativa: {formatarMoeda(g.custo_estimado_por_hora)}/h · Cálculo real: {g.horas_consumidas > 0 ? `${formatarMoeda(g.custo_galao / g.horas_consumidas)}/h` : "aguardando uso"}
                 </p>
+              )}
+              {!g.data_fim && (
+                <div className="mt-3 rounded-xl border border-dashed border-royal/30 bg-royal/5 p-3">
+                  <p className="mb-1.5 text-[12px] font-bold text-royal">
+                    {g.custo_estimado_por_hora != null ? "Custo estimado por hora" : "Definir custo estimado por hora"}
+                  </p>
+                  <p className="mb-2 text-[11px] text-muted-foreground">
+                    Valor usado na projeção da mensalidade enquanto o galão estiver aberto.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      placeholder="R$/h"
+                      className="h-8 w-28 text-[13px]"
+                      value={estimadoLocal}
+                      onChange={(e) => setEstimadoLocal(e.target.value)}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={salvarEstimadoLocal}
+                      disabled={salvandoEstimado}
+                    >
+                      {salvandoEstimado ? "Salvando..." : "Salvar"}
+                    </Button>
+                  </div>
+                </div>
               )}
               {!g.data_fim && (
                 <button
