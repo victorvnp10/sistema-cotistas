@@ -120,7 +120,7 @@ function ModalCotista({ aberto, aoFechar, membro }: { aberto: boolean; aoFechar:
   const [nome, setNome] = useState(membro?.nome ?? "");
   const [email, setEmail] = useState(membro?.email ?? "");
   const [telefone, setTelefone] = useState(membro?.telefone ?? "");
-  const [role, setRole] = useState<Papel>(membro?.role ?? "cotista");
+  const [role, setRole] = useState<Papel>((membro?.role as Papel) ?? "cotista");
   const [cotas, setCotas] = useState(membro?.cotas ?? 1);
   const [ativo, setAtivo] = useState(membro?.ativo ?? true);
 
@@ -131,7 +131,7 @@ function ModalCotista({ aberto, aoFechar, membro }: { aberto: boolean; aoFechar:
     setNome(membro?.nome ?? "");
     setEmail(membro?.email ?? "");
     setTelefone(membro?.telefone ?? "");
-    setRole(membro?.role ?? "cotista");
+    setRole((membro?.role as Papel) ?? "cotista");
     setCotas(membro?.cotas ?? 1);
     setAtivo(membro?.ativo ?? true);
   }

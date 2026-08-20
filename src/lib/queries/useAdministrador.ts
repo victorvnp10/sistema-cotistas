@@ -70,7 +70,7 @@ export function useTrocarAdmin() {
       const { error } = await supabase.rpc("master_trocar_admin", {
         p_grupo_id: payload.grupoId,
         p_novo_admin_email: payload.email,
-        p_novo_admin_nome: payload.nome ?? null,
+        p_novo_admin_nome: payload.nome ?? undefined,
       });
       if (error) throw error;
     },

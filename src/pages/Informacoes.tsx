@@ -86,9 +86,9 @@ export default function Informacoes() {
 
   const agrupado = new Map<CategoriaInformacao, Informacao[]>();
   for (const info of informacoes ?? []) {
-    const lista = agrupado.get(info.categoria) ?? [];
+    const lista = agrupado.get(info.categoria as CategoriaInformacao) ?? [];
     lista.push(info);
-    agrupado.set(info.categoria, lista);
+    agrupado.set(info.categoria as CategoriaInformacao, lista);
   }
 
   return (

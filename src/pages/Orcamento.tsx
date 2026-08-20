@@ -178,7 +178,7 @@ function SecaoLancamentos() {
 
   function abrirEdicao(l: Lancamento) {
     setEditando(l);
-    setTipo(l.tipo);
+    setTipo(l.tipo as TipoLancamento);
     setDescricao(l.descricao);
     // Receita é editada por valor-por-cota (igual na criação); despesa é o valor total.
     setValor(String(l.tipo === "receita" ? (l.valor_por_cota ?? l.valor) : l.valor));

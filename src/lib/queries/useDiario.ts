@@ -54,11 +54,11 @@ export function useCriarRegistroDiario() {
         p_titulo: payload.titulo,
         p_relato: payload.relato,
         p_prioridade: payload.prioridade ?? "normal",
-        p_horimetro_inicio: payload.horimetroInicio ?? null,
+        p_horimetro_inicio: payload.horimetroInicio ?? undefined,
         p_horimetro_fim: payload.horimetroFim ?? 0,
-        p_observacoes: payload.observacoes ?? null,
+        p_observacoes: payload.observacoes ?? undefined,
         p_uso_rotina: payload.usoRotina ?? false,
-        p_data_uso: payload.dataUso ?? null,
+        p_data_uso: payload.dataUso ?? undefined,
       });
       if (error) throw error;
     },
@@ -139,7 +139,7 @@ export function useRegistrarTrocaHorimetro() {
         p_grupo_id: grupoAtual!.id,
         p_horas_reais_ate_troca: payload.horasReaisAteTroca,
         p_leitura_aparelho_novo: payload.leituraAparelhoNovo,
-        p_motivo: payload.motivo ?? null,
+        p_motivo: payload.motivo ?? undefined,
         p_data: payload.data ?? new Date().toISOString().slice(0, 10),
       });
       if (error) throw error;

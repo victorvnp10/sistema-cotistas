@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Printer, BarChart3 } from "lucide-react";
 import { usePainelGestor } from "@/lib/queries/usePainelGestor";
 import { formatarMoeda } from "@/lib/formato";
+import type { PainelGestor } from "@/types/database.types";
 import { formatarDataBR } from "@/lib/ranking";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,7 +63,7 @@ export default function PainelGestor() {
                   </tr>
                 </thead>
                 <tbody>
-                  {painel.porUsuario.map((u) => (
+                  {painel.porUsuario.map((u: PainelGestor['porUsuario'][number]) => (
                     <tr key={u.membroId} className={!u.ativo ? "opacity-50" : ""}>
                       <td className="whitespace-nowrap py-1.5 font-medium">{u.nome}</td>
                       <td className="whitespace-nowrap py-1.5">{u.diasUteisMes}</td><td className="whitespace-nowrap py-1.5">{u.diasTodosMes}</td>
@@ -104,7 +105,7 @@ export default function PainelGestor() {
                     </tr>
                   </thead>
                   <tbody>
-                    {painel.custosVariaveis.manutencoesHoras.map((m, i) => (
+                    {painel.custosVariaveis.manutencoesHoras.map((m: PainelGestor['custosVariaveis']['manutencoesHoras'][number], i: number) => (
                       <tr key={i} className={m.horasRestantes < 0 ? "bg-destructive/5" : ""}>
                         <td className="whitespace-nowrap py-1">{m.descricao}</td>
                         <td className="whitespace-nowrap py-1">{m.proximaData ? formatarDataBR(m.proximaData) : "—"}</td>
@@ -177,7 +178,7 @@ export default function PainelGestor() {
               <p className="text-[13px] text-muted-foreground">Nenhum pendente. Todos em dia!</p>
             ) : (
               <div className="flex flex-col gap-2">
-                {painel.relatoriosPendentesTodos.map((p) => (
+                {painel.relatoriosPendentesTodos.map((p: PainelGestor['relatoriosPendentesTodos'][number]) => (
                   <div key={p.membroId} className="flex items-center justify-between gap-2 text-[13.5px]">
                     <span className="truncate">{p.nome}</span>
                     <Badge variant="warning">{p.pendentes} pendente(s)</Badge>

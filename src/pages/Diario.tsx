@@ -251,7 +251,7 @@ export default function Diario() {
         ) : (
           <div className="flex flex-col gap-2.5">
             {exibidos.map((e, i) => {
-              const IconePrioridade = ICON_PRIORIDADE[e.prioridade];
+              const IconePrioridade = ICON_PRIORIDADE[e.prioridade as PrioridadeDiario];
               return (
               <motion.div
                 key={e.id}
@@ -261,9 +261,9 @@ export default function Diario() {
                 className={cn("rounded-2xl border border-border/60 bg-white p-4", e.resolvido && "opacity-60")}
               >
                 <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                  <Badge variant={e.resolvido ? "success" : BADGE_PRIORIDADE[e.prioridade]}>
+                  <Badge variant={e.resolvido ? "success" : BADGE_PRIORIDADE[e.prioridade as PrioridadeDiario]}>
                     <IconePrioridade size={11} />
-                    {e.resolvido ? "Resolvido" : LABEL_PRIORIDADE[e.prioridade]}
+                    {e.resolvido ? "Resolvido" : LABEL_PRIORIDADE[e.prioridade as PrioridadeDiario]}
                   </Badge>
                   <span className="text-[14px] font-bold">{e.titulo}</span>
                   <span className="ml-auto text-[11px] text-muted-foreground">{new Date(e.criado_em).toLocaleDateString("pt-BR")}</span>
@@ -271,7 +271,7 @@ export default function Diario() {
                 <p className="whitespace-pre-wrap text-[13.5px] text-foreground/90">{e.relato}</p>
                 {e.horimetro_fim > 0 && (
                   <p className="mt-1.5 flex items-center gap-1 text-[11.5px] font-medium text-royal">
-                    <Clock size={11} /> {e.horimetro_inicio.toFixed(1)}h → {e.horimetro_fim.toFixed(1)}h (uso: {e.tempo_uso.toFixed(1)}h)
+                    <Clock size={11} /> {e.horimetro_inicio.toFixed(1)}h → {e.horimetro_fim.toFixed(1)}h (uso: {(e.tempo_uso ?? 0).toFixed(1)}h)
                   </p>
                 )}
                 {e.observacoes && <p className="mt-1 text-[11.5px] text-muted-foreground">Obs: {e.observacoes}</p>}

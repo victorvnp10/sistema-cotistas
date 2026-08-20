@@ -35,12 +35,12 @@ export function useRenovarSeguro() {
       const { error } = await supabase.rpc("renovar_seguro", {
         p_grupo_id: grupoAtual!.id,
         p_apolice: payload.apolice,
-        p_seguradora: payload.seguradora || null,
+        p_seguradora: payload.seguradora || '',
         p_data_inicio: payload.dataInicio,
         p_valor: payload.valor,
         p_data_vencimento: payload.dataVencimento,
         p_lancar_despesa: payload.lancarDespesa,
-        p_observacao: payload.observacao ?? null,
+        p_observacao: payload.observacao ?? undefined,
       });
       if (error) throw error;
     },

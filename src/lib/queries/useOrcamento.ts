@@ -38,7 +38,7 @@ export function useCriarLancamento() {
         p_descricao: payload.descricao,
         p_valor: payload.valor,
         p_data: payload.data,
-        p_observacao: payload.observacao ?? null,
+        p_observacao: payload.observacao ?? undefined,
       });
       if (error) throw error;
     },
@@ -62,7 +62,7 @@ export function useEditarLancamento() {
         p_descricao: payload.descricao,
         p_valor: payload.valor,
         p_data: payload.data,
-        p_observacao: payload.observacao ?? null,
+        p_observacao: payload.observacao ?? undefined,
       });
       if (error) throw error;
     },

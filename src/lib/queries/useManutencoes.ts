@@ -88,8 +88,8 @@ export function useConcluirManutencao() {
       const { error } = await supabase.rpc("concluir_manutencao", {
         p_manutencao_id: payload.manutencaoId,
         p_data_fechamento: payload.dataFechamento,
-        p_custo_real: payload.custoReal ?? null,
-        p_reagendar_dias: payload.reagendarDias ?? null,
+        p_custo_real: payload.custoReal ?? undefined,
+        p_reagendar_dias: payload.reagendarDias ?? undefined,
       });
       if (error) throw error;
     },
